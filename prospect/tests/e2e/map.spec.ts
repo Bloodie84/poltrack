@@ -191,6 +191,7 @@ test.describe('Navigation', () => {
     await page.goto('/carte');
     const nav = page.getByRole('navigation').first();
     await expect(nav.getByRole('link', { name: 'Carte' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Sorties' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Matériel' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Réglages' })).toBeVisible();
   });

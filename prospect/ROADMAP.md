@@ -25,16 +25,28 @@ Projet, base de données, authentification, carte.
 - ✅ PWA installable : manifeste, icônes, service worker de coque
 - ✅ Tests : 59 unitaires, 25 d'intégration base, 13 de bout en bout
 
-## Phase 2 — Sorties et traces GPS ⬜
+## Phase 2 — Sorties et traces GPS ✅
 
-- ⬜ `sessions` : démarrer / pause / reprendre / terminer, chronomètre
-- ⬜ `gps_points` : enregistrement réel des fixes, échantillonnage temps + distance + cap
-- ⬜ `tracks` : géométrie consolidée pour l'affichage
-- ⬜ Distance parcourue, durée, vitesse moyenne
-- ⬜ Écran LIVE utilisable à une main
-- ⬜ Historique des passages, filtres (jour / semaine / mois / année / sortie)
-- ⬜ Retour à la voiture : point de départ, cap et distance
-- ⬜ `Screen Wake Lock` pendant une sortie
+- ✅ `sessions` : démarrer / pause / reprendre / terminer, chronomètre local
+- ✅ Une seule sortie ouverte à la fois, garantie par un index unique partiel
+- ✅ `gps_points` : enregistrement réel de chaque fix retenu, avec son incertitude
+- ✅ Échantillonnage temps + distance + changement de cap + battement à l'arrêt
+- ✅ `tracks` : géométrie consolidée et simplifiée, reconstruite à chaque envoi
+- ✅ Distance, durée hors pauses, vitesse moyenne
+- ✅ Tampon local des points : ni une coupure réseau ni un rechargement ne perd
+     un point (envoi idempotent par UUID généré côté client)
+- ✅ Écran LIVE utilisable à une main, avertissement explicite si le GPS est éteint
+- ✅ Historique des passages sur la carte, filtres jour / semaine / mois / année
+- ✅ Liste paginée des sorties, fiche détaillée avec trace, édition, suppression logique
+- ✅ Retour à la voiture : cap et distance, calculés hors ligne
+- ✅ `Screen Wake Lock` pendant une sortie, avec repli annoncé si indisponible
+- ✅ Tests : 122 unitaires, 49 d'intégration base, 16 de bout en bout hors ligne,
+     9 de bout en bout connectés (sortie complète pilotée dans un navigateur)
+
+### Reste à faire dans ce périmètre
+- ⬜ Filtre de l'historique par parcelle (les parcelles arrivent en phase 4)
+- ⬜ Export GPX/KML d'une trace (phase 6)
+- ⬜ Météo et conditions de sortie (champs prévus, phase 7)
 
 ## Phase 3 — Découvertes et photos ⬜
 

@@ -36,6 +36,10 @@ Fichiers SQL numérotés dans `supabase/migrations/`, appliqués par
 0004_detectors.sql                detectors, detector_presets
 0005_find_categories.sql          Catégories système + personnelles
 0006_default_detector.sql         set_default_detector() atomique
+0007_sessions.sql                 sessions (cycle de vie, largeur figée, retour)
+0008_gps_points_and_tracks.sql    gps_points bruts, tracks consolidées
+0009_session_functions.sql        cycle de vie, append_gps_points, session_overview
+0010_session_reads.sql            session_geojson (trace complète d'une sortie)
 ```
 
 **Les migrations sont immuables.** Le registre `public.app_migrations`
@@ -111,6 +115,63 @@ Une contrainte empêche de créer une catégorie « système » usurpée.
 
 ---
 
+## Tables — phase 2 (implémentées)
+
+### `sessions`
+Une sortie, de son démarrage à sa fin.
+
+| Colonne | Type | Notes |
+| --- | --- | --- |
+| `status` | `session_status` | `active` \| `paused` \| `finished`. |
+| `started_at` / `ended_at` | `timestamptz` | `ended_at` non nul ⇔ `finished`. |
+| `paused_seconds` | `integer` | Pauses déjà soldées. |
+| `paused_at` | `timestamptz` | Début de la pause en cours ⇔ `paused`. |
+| `sweep_width_m` | `numeric(4,2)` | **Figée au démarrage** : changer le réglage plus tard ne doit pas réécrire la couverture des sorties passées. |
+| `start_point` | `geography(Point,4326)` | Position de départ. Index GiST. |
+| `vehicle_point` | `geography(Point,4326)` | Point de retour (voiture, entrée du terrain). |
+| `detector_id` | `uuid` | `ON DELETE SET NULL` : retirer un détecteur n'efface pas une sortie. |
+
+Index unique partiel `sessions_one_open_per_user` : **une seule sortie ouverte à
+la fois**. Trois contraintes `CHECK` garantissent la cohérence de l'état
+(`paused` ⇔ `paused_at`, `finished` ⇔ `ended_at`, fin après début).
+
+### `gps_points`
+La donnée source, jamais reconstruite.
+
+| Colonne | Notes |
+| --- | --- |
+| `id` | **Généré par le client** : c'est ce qui rend l'envoi idempotent après une coupure réseau. |
+| `position` | `geography(Point,4326)`, index GiST. `lat`/`lon` en colonnes générées. |
+| `recorded_at` | Horodatage du fix, pas de son enregistrement. |
+| `accuracy_m`, `altitude_m`, `altitude_accuracy_m`, `speed_ms`, `heading_deg` | Mesures brutes, telles que fournies par le navigateur. |
+| `is_reliable` | Faux si l'incertitude dépasse le seuil de l'utilisateur : le point est **conservé** mais exclu de la trace et des distances. |
+
+### `tracks`
+Projection destinée à l'affichage, entièrement reconstructible par
+`rebuild_track()` : `line` (complète), `simplified` (~2 m de tolérance),
+`point_count`, `distance_m`.
+
+### Fonctions
+
+| Fonction | Rôle |
+| --- | --- |
+| `start_session(...)` | Démarre une sortie, refuse s'il en existe déjà une ouverte. |
+| `pause_session` / `resume_session` | Bascule d'état, cumule le temps de pause. |
+| `finish_session` | Solde la pause en cours, clôt la sortie, reconstruit la trace. |
+| `append_gps_points(id, jsonb)` | Insère un lot, ignore les doublons et les coordonnées hors bornes, reconstruit la trace. |
+| `set_vehicle_point` | Définit ou efface le point de retour. |
+| `rebuild_track` | Recalcule `tracks` depuis les points fiables. |
+| `tracks_in_bbox(...)` | Traces simplifiées d'une emprise et d'une période, en GeoJSON, bornées à 500 résultats. |
+| `session_geojson(id)` | Trace complète, départ et point de retour d'une sortie. |
+
+### Vue `session_overview`
+Sorties enrichies de `distance_m`, `point_count`, `elapsed_seconds` et
+`active_seconds` (temps écoulé moins toutes les pauses, pause en cours
+comprise). Déclarée `security_invoker = true` : la RLS des tables sous-jacentes
+s'applique.
+
+---
+
 ## Tables — phases suivantes (prévues, non créées)
 
 Le schéma ci-dessous est le cap visé. Chaque table sera créée par la migration
@@ -118,7 +179,6 @@ de sa phase, pas avant.
 
 | Phase | Tables | Points spatiaux clés |
 | --- | --- | --- |
-| 2 | `sessions`, `gps_points`, `tracks` | `gps_points.position geography(Point,4326)` (index GiST), `tracks.line geography(LineString,4326)`. |
 | 3 | `finds`, `find_photos`, `collections`, `collection_items` | `finds.position geography(Point,4326)` + `accuracy_m` conservée. |
 | 4 | `areas`, `area_coverage`, `points_of_interest`, `land_permissions` | `areas.boundary geography(Polygon,4326)`, couverture = `ST_Union` des tampons de largeur de balayage, restant = `ST_Difference`. |
 | 5 | `sync_queue` (côté client, IndexedDB) | Pas de table serveur : l'idempotence repose sur les UUID clients. |
@@ -161,6 +221,15 @@ vérifie :
 * l'isolation stricte entre deux utilisateurs (lecture **et** écriture) ;
 * le partage des catégories système et l'isolement des catégories personnelles ;
 * la validation des bornes de `set_home_point` ;
+* le cycle complet d'une sortie : démarrage, unicité de la sortie ouverte,
+  pauses cumulées, clôture depuis la pause ;
+* l'idempotence de `append_gps_points`, le rejet des coordonnées hors bornes et
+  la reconstruction de la trace après une synchronisation différée ;
+* la conservation des points peu fiables et leur exclusion de la trace ;
+* le filtrage par emprise et par période de `tracks_in_bbox`, et son isolation
+  entre utilisateurs ;
+* le contrat entre le code et le SQL : chaque argument nommé de chaque appel
+  `supabase.rpc(...)` du code existe bien dans la signature de la fonction ;
 * l'atomicité de `set_default_detector`, y compris le refus d'agir sur le
   matériel d'autrui ;
 * les fondations PostGIS de la couverture : distances en mètres, surface d'un

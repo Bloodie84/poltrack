@@ -4,9 +4,33 @@ import { useEffect, useRef, useState } from 'react';
 import { GeoJSONSource, Map as MapLibreMap, ScaleControl, setWorkerUrl } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { EMPTY_FEATURES, type PositionFeatures } from '@/lib/geo/position-feature';
+import { EMPTY_TRACK, type TrackFeatures } from '@/lib/geo/track-feature';
 import { resolveBasemap, type BasemapId } from './basemaps';
+import type { FeatureCollection } from 'geojson';
+import type { BBox } from '@/lib/geo/types';
 
 export const POSITION_SOURCE_ID = 'current-position';
+export const LIVE_TRACK_SOURCE_ID = 'live-track';
+export const HISTORY_SOURCE_ID = 'past-tracks';
+export const MARKERS_SOURCE_ID = 'markers';
+
+/** Données vectorielles poussées dans la carte. */
+export type MapLayerData = {
+  position: PositionFeatures;
+  liveTrack: TrackFeatures;
+  history: FeatureCollection;
+  /** Points nommés : départ, point de retour… (découvertes en phase 3). */
+  markers: FeatureCollection;
+};
+
+const EMPTY_HISTORY: FeatureCollection = { type: 'FeatureCollection', features: [] };
+
+export const EMPTY_LAYER_DATA: MapLayerData = {
+  position: EMPTY_FEATURES,
+  liveTrack: EMPTY_TRACK,
+  history: EMPTY_HISTORY,
+  markers: EMPTY_HISTORY,
+};
 
 /**
  * MapLibre déduit l'URL de son worker de `import.meta.url`. Après empaquetage,
@@ -25,13 +49,54 @@ setWorkerUrl(MAPLIBRE_WORKER_URL);
  * Appelée au chargement puis après chaque changement de style, `setStyle`
  * repartant d'un style vierge sans les sources personnalisées.
  */
-function installPositionLayers(map: MapLibreMap, data: PositionFeatures): void {
+function installLayers(map: MapLibreMap, data: MapLayerData): void {
   // `styledata` peut être émis avant que le style soit exploitable : y ajouter
   // une couche lèverait une exception qui interromprait la séquence de
   // chargement de MapLibre (et donc l'événement `load`).
   if (!map.isStyleLoaded() || map.getSource(POSITION_SOURCE_ID)) return;
 
-  map.addSource(POSITION_SOURCE_ID, { type: 'geojson', data });
+  // Ordre d'empilement : passages anciens, puis trace en cours, puis position.
+  map.addSource(HISTORY_SOURCE_ID, { type: 'geojson', data: data.history });
+  map.addLayer({
+    id: 'past-tracks-line',
+    type: 'line',
+    source: HISTORY_SOURCE_ID,
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': '#a78bfa', 'line-width': 2.5, 'line-opacity': 0.55 },
+  });
+
+  map.addSource(LIVE_TRACK_SOURCE_ID, { type: 'geojson', data: data.liveTrack });
+  map.addLayer({
+    id: 'live-track-line',
+    type: 'line',
+    source: LIVE_TRACK_SOURCE_ID,
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': '#34d399', 'line-width': 4, 'line-opacity': 0.9 },
+  });
+
+  map.addSource(MARKERS_SOURCE_ID, { type: 'geojson', data: data.markers });
+  map.addLayer({
+    id: 'markers-dot',
+    type: 'circle',
+    source: MARKERS_SOURCE_ID,
+    filter: ['==', ['geometry-type'], 'Point'],
+    paint: {
+      'circle-radius': 7,
+      'circle-color': [
+        'match',
+        ['get', 'kind'],
+        'start',
+        '#34d399',
+        'vehicle',
+        '#f59e0b',
+        '#38bdf8',
+      ],
+      'circle-stroke-width': 2,
+      'circle-stroke-color': '#0b1220',
+    },
+  });
+
+  map.addSource(POSITION_SOURCE_ID, { type: 'geojson', data: data.position });
 
   map.addLayer({
     id: 'position-accuracy-fill',
@@ -87,14 +152,16 @@ function detectWebGl(): boolean {
 
 export type MapCanvasProps = {
   basemapId: BasemapId;
-  /** Position courante à représenter, ou `null` tant qu'aucun fix n'est reçu. */
-  positionFeatures: PositionFeatures | null;
+  /** Données vectorielles à afficher : position, trace en cours, historique. */
+  layerData: MapLayerData;
   initialCenter: [number, number];
   initialZoom: number;
   /** Appelé une fois la carte prête ; permet au parent de piloter la caméra. */
   onReady: (map: MapLibreMap) => void;
   /** Déclenché quand l'utilisateur déplace la carte lui-même. */
   onUserInteraction?: () => void;
+  /** Déclenché à la fin de chaque déplacement, avec l'emprise visible. */
+  onViewportChange?: (bounds: BBox) => void;
 };
 
 /**
@@ -103,11 +170,12 @@ export type MapCanvasProps = {
  */
 export function MapCanvas({
   basemapId,
-  positionFeatures,
+  layerData,
   initialCenter,
   initialZoom,
   onReady,
   onUserInteraction,
+  onViewportChange,
 }: MapCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -117,10 +185,11 @@ export function MapCanvas({
   // parce qu'une fonction parente a changé d'identité entre deux rendus.
   const onReadyRef = useRef(onReady);
   const onUserInteractionRef = useRef(onUserInteraction);
+  const onViewportChangeRef = useRef(onViewportChange);
   const initialViewRef = useRef({ center: initialCenter, zoom: initialZoom });
-  // Dernières données connues : servent aussi de contenu initial lorsque la
-  // source est recréée après un changement de style.
-  const featuresRef = useRef<PositionFeatures>(positionFeatures ?? EMPTY_FEATURES);
+  // Dernières données connues : servent aussi de contenu initial lorsque les
+  // sources sont recréées après un changement de style.
+  const dataRef = useRef<MapLayerData>(layerData);
   // Style déjà appliqué : évite un `setStyle` inutile au montage, qui
   // provoquerait une reconstruction complète avant la fin du chargement.
   const appliedBasemapRef = useRef(basemapId);
@@ -128,14 +197,19 @@ export function MapCanvas({
   useEffect(() => {
     onReadyRef.current = onReady;
     onUserInteractionRef.current = onUserInteraction;
+    onViewportChangeRef.current = onViewportChange;
   });
 
   useEffect(() => {
+    dataRef.current = layerData;
     const map = mapRef.current;
-    const data = positionFeatures ?? EMPTY_FEATURES;
-    featuresRef.current = data;
-    map?.getSource<GeoJSONSource>(POSITION_SOURCE_ID)?.setData(data);
-  }, [positionFeatures]);
+    if (!map) return;
+
+    map.getSource<GeoJSONSource>(POSITION_SOURCE_ID)?.setData(layerData.position);
+    map.getSource<GeoJSONSource>(LIVE_TRACK_SOURCE_ID)?.setData(layerData.liveTrack);
+    map.getSource<GeoJSONSource>(HISTORY_SOURCE_ID)?.setData(layerData.history);
+    map.getSource<GeoJSONSource>(MARKERS_SOURCE_ID)?.setData(layerData.markers);
+  }, [layerData]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -159,7 +233,7 @@ export function MapCanvas({
     mapRef.current = map;
     map.addControl(new ScaleControl({ unit: 'metric' }), 'bottom-left');
 
-    const install = () => installPositionLayers(map, featuresRef.current);
+    const install = () => installLayers(map, dataRef.current);
     map.on('load', () => {
       install();
       onReadyRef.current(map);
@@ -182,6 +256,16 @@ export function MapCanvas({
     map.on('dragstart', notifyInteraction);
     map.on('zoomstart', notifyInteraction);
     map.on('rotatestart', notifyInteraction);
+
+    map.on('moveend', () => {
+      const bounds = map.getBounds();
+      onViewportChangeRef.current?.([
+        bounds.getWest(),
+        bounds.getSouth(),
+        bounds.getEast(),
+        bounds.getNorth(),
+      ]);
+    });
 
     return () => {
       map.remove();

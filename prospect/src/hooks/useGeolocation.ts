@@ -64,7 +64,18 @@ function messageFor(error: GeolocationPositionError): string {
  * utilisateur pour une demande de permission compréhensible, et la carte doit
  * rester utilisable sans GPS.
  */
-export function useGeolocation(options: PositionOptions = DEFAULT_OPTIONS): GeolocationState & {
+export type GeolocationOptions = {
+  positionOptions?: PositionOptions;
+  /**
+   * Appelé à chaque fix reçu, avant la mise à jour de l'état React.
+   * L'enregistrement d'une sortie s'y branche : il réagit à un événement du
+   * navigateur plutôt qu'à un changement d'état, ce qui évite tout effet en
+   * cascade et ne perd aucun fix.
+   */
+  onFix?: (fix: GpsFix) => void;
+};
+
+export function useGeolocation(options: GeolocationOptions = {}): GeolocationState & {
   start: () => void;
   stop: () => void;
 } {
@@ -107,9 +118,11 @@ export function useGeolocation(options: PositionOptions = DEFAULT_OPTIONS): Geol
 
     watchIdRef.current = navigator.geolocation.watchPosition(
       (position) => {
+        const fix = toFix(position);
+        optionsRef.current.onFix?.(fix);
         setState((previous) => ({
           status: 'tracking',
-          fix: toFix(position),
+          fix,
           error: null,
           fixCount: previous.fixCount + 1,
         }));
@@ -129,7 +142,7 @@ export function useGeolocation(options: PositionOptions = DEFAULT_OPTIONS): Geol
           watchIdRef.current = null;
         }
       },
-      optionsRef.current,
+      optionsRef.current.positionOptions ?? DEFAULT_OPTIONS,
     );
   }, []);
 

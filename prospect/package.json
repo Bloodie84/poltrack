@@ -18,6 +18,7 @@
     "test:all": "vitest run",
     "test:db": "vitest run --project db",
     "test:e2e": "playwright test",
+    "test:e2e:connected": "NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321 NEXT_PUBLIC_SUPABASE_ANON_KEY=test-anon-key next build && playwright test -c playwright.connected.config.ts",
     "test:watch": "vitest --project unit",
     "typecheck": "next typegen && tsc --noEmit"
   },
@@ -28,6 +29,7 @@
     "next": "16.3.2",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "server-only": "^0.0.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {

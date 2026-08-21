@@ -4,10 +4,11 @@ Application de suivi des sorties de détection de métaux : traces GPS réelles,
 zones réellement prospectées, découvertes géolocalisées, cartographie, analyse
 du terrain.
 
-> **État actuel : phase 1 terminée.** Les fondations sont posées et
-> fonctionnelles : base PostGIS avec sécurité au niveau des lignes,
-> authentification, carte, géolocalisation, réglages, matériel.
-> Les sorties, les traces et les découvertes arrivent en phase 2.
+> **État actuel : phases 1 et 2 terminées.** Fondations (base PostGIS avec
+> sécurité au niveau des lignes, authentification, carte, géolocalisation) puis
+> sorties de détection : chronomètre, enregistrement réel des points GPS,
+> traces, historique des passages et retour à la voiture.
+> Les découvertes arrivent en phase 3.
 > Voir [ROADMAP.md](./ROADMAP.md) pour le détail phase par phase.
 
 ---
@@ -28,6 +29,14 @@ du terrain.
 | Point d'ouverture de la carte enregistré en PostGIS | ✅ |
 | PWA installable, coque disponible hors ligne | ✅ |
 | Interface responsive mobile / ordinateur, thème sombre | ✅ |
+| Sortie : démarrer, pause, reprendre, terminer, chronomètre | ✅ |
+| Enregistrement réel des points GPS, échantillonnage réglable | ✅ |
+| Trace consolidée, distance et vitesse moyenne | ✅ |
+| Aucun point perdu : tampon local et envoi idempotent | ✅ |
+| Historique des passages sur la carte, filtré par période | ✅ |
+| Liste des sorties, fiche détaillée, édition, suppression | ✅ |
+| Retour à la voiture : cap et distance, sans réseau | ✅ |
+| Écran maintenu allumé pendant une sortie (si le navigateur le permet) | ✅ |
 
 **Sans configuration Supabase, l'application reste utilisable** : la carte et le
 GPS fonctionnent entièrement côté client. Un bandeau indique alors explicitement
@@ -35,8 +44,7 @@ que **rien n'est enregistré**. Aucun bouton ne fait semblant de sauvegarder.
 
 ## Ce qui n'existe pas encore
 
-Sorties, chronomètre, traces GPS enregistrées, historique des passages,
-découvertes, photos, parcelles, couverture, mode tondeuse, hors ligne complet,
+Découvertes, photos, parcelles, couverture, mode tondeuse, hors ligne complet,
 partage, statistiques, replay, IGN, LiDAR, cartes historiques, 3D.
 Ces fonctions sont planifiées dans [ROADMAP.md](./ROADMAP.md) — aucune n'est
 présentée comme disponible.
@@ -96,7 +104,8 @@ refusés. La page `/configuration` reprend cette procédure dans l'application.
 | `npm run typecheck` | TypeScript strict, sans émission |
 | `npm test` | Tests unitaires (géométrie, formatage, validation) |
 | `npm run test:db` | Tests d'intégration PostgreSQL/PostGIS (nécessite `DATABASE_URL`) |
-| `npm run test:e2e` | Tests de bout en bout Playwright (nécessite un build) |
+| `npm run test:e2e` | Tests de bout en bout sans backend (nécessite un build) |
+| `npm run test:e2e:connected` | Tests de bout en bout sur base réelle : reconstruit l'application et joue un parcours de sortie complet |
 | `npm run db:migrate` | Applique les migrations en attente |
 | `npm run db:status` | Affiche l'état des migrations, sans rien écrire |
 | `npm run icons:generate` | Régénère les icônes PWA |
@@ -112,6 +121,23 @@ TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/prospect_test npm 
 
 Ces tests appliquent les **vraies** migrations puis vérifient l'isolation RLS
 entre utilisateurs et les calculs PostGIS. Ils ne simulent rien.
+
+### Tests de bout en bout sur base réelle
+
+```bash
+TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/prospect_test \
+  npm run test:e2e:connected
+```
+
+Faute d'instance Supabase joignable en développement, `tests/harness` expose la
+base PostGIS via l'API attendue par le client Supabase. Un navigateur déroule
+alors le parcours complet — démarrer une sortie, marcher, mettre en pause,
+terminer — et les données sont vérifiées directement en base. Voir
+[ARCHITECTURE.md](./ARCHITECTURE.md#10-vérification-de-bout-en-bout) pour ce que
+cela prouve et ce que cela ne prouve pas.
+
+> Cette commande reconstruit l'application avec des variables `NEXT_PUBLIC_*` de
+> test. Relancez `npm run build` avant de déployer.
 
 ---
 

@@ -64,7 +64,9 @@ prospect/
 ├── scripts/                        Migrations, génération des icônes
 ├── tests/
 │   ├── db/                         Intégration PostgreSQL/PostGIS
-│   └── e2e/                        Parcours réels (Playwright)
+│   ├── e2e/                        Parcours réels sans backend (Playwright)
+│   ├── connected/                  Parcours réels avec base (Playwright)
+│   └── harness/                    Banc d'essai exposant la base via l'API Supabase
 └── public/                         Icônes PWA, service worker
 ```
 
@@ -130,7 +132,7 @@ une carte qui tourne désoriente ; le cap est indiqué par la lecture GPS.
 
 ---
 
-## 5. Stratégie de stockage des traces GPS *(conçue en phase 1, appliquée en phase 2)*
+## 5. Stratégie de stockage des traces GPS *(appliquée)*
 
 Les points bruts sont conservés — jamais une simple polyligne dessinée.
 
@@ -145,11 +147,36 @@ Les points bruts sont conservés — jamais une simple polyligne dessinée.
 Un point est retenu lorsque l'intervalle **et** la distance sont atteints ; un
 changement de cap marqué force également un point, pour ne pas couper les virages.
 
-**Modèle prévu (phase 2)** : `gps_points` conserve chaque fix
+À ces trois critères s'ajoutent deux règles qui évitent de perdre l'essentiel :
+
+* **changement de cap ≥ 30°** : sans elle, les virages seraient coupés en ligne
+  droite et la surface prospectée serait fausse ;
+* **battement toutes les 30 s** : à l'arrêt, un point atteste tout de même de la
+  présence sur place.
+
+Un fix dont l'incertitude dépasse quatre fois le seuil est rejeté (une mesure à
+500 m n'apporte rien) ; entre le seuil et cette limite, il est **conservé mais
+marqué `is_reliable = false`** et exclu de la trace et des distances. On ne jette
+pas une mesure, on la qualifie.
+
+**Modèle** : `gps_points` conserve chaque fix
 (`position geography(Point,4326)`, `recorded_at`, `accuracy_m`, `altitude_m`,
 `speed_ms`, `heading_deg`, `session_id`), et `tracks` porte la géométrie
-consolidée (`geography(LineString,4326)`) pour l'affichage. Le détail brut sert
-aux recalculs, la ligne consolidée sert au rendu.
+consolidée (`geography(LineString,4326)`) plus une version simplifiée pour
+l'affichage. Le détail brut sert aux recalculs, la ligne consolidée sert au rendu.
+
+### Ne jamais perdre un point
+
+L'identifiant d'un point est un **UUID généré par le client**. Le point est
+d'abord écrit dans un tampon local (`localStorage`), envoyé au serveur par lots,
+et n'en est retiré qu'une fois accepté. Conséquences :
+
+* une coupure réseau ne perd rien : le lot repart au prochain cycle ;
+* un rechargement de page ne perd rien : le tampon survit ;
+* renvoyer un lot déjà reçu n'insère aucun doublon (`ON CONFLICT DO NOTHING`).
+
+Ce tampon n'est pas le mode hors ligne complet (découvertes, photos, file de
+synchronisation) : celui-ci arrive en phase 5 et reposera sur IndexedDB.
 
 **Volumétrie** : à 1 point / 3 s, une sortie de 4 h produit ~4 800 points ;
 200 sorties par an ≈ 1 M de points. C'est pourquoi l'affichage passe par la
@@ -162,7 +189,9 @@ emprise, jamais par le détail brut.
 
 Trois niveaux, du plus simple au plus complet :
 
-1. **Coque applicative** *(implémenté)* — service worker limité aux fichiers
+1. **Coque applicative et points GPS** *(implémenté)* — voir « Ne jamais perdre
+   un point » ci-dessus pour le tampon des traces.
+   Pour le reste : — service worker limité aux fichiers
    statiques versionnés, page de repli hors ligne. **Aucune réponse HTML ni
    donnée applicative n'est mise en cache** : sur un appareil partagé, un cache
    de pages exposerait les données d'un compte à l'autre.
@@ -232,7 +261,27 @@ pour rester réversible.
 
 ---
 
-## 10. Conventions de code
+## 10. Vérification de bout en bout
+
+Aucun projet Supabase n'étant joignable depuis l'environnement de développement,
+`tests/harness/supabase-stub.mjs` expose la **vraie** base PostgreSQL/PostGIS via
+le sous-ensemble de l'API que le client Supabase utilise (PostgREST et
+`/auth/v1/user`). Chaque requête est jouée sous le rôle `authenticated` avec le
+claim JWT de l'utilisateur de test : le SQL, les fonctions et la RLS exercés sont
+ceux du produit.
+
+Ce banc d'essai ne sert qu'aux tests ; il n'est jamais inclus dans le build. Il
+ne prouve pas le comportement exact de PostgREST ni de GoTrue — seule une
+instance Supabase réelle le fait — mais il permet de dérouler un parcours complet
+(démarrer une sortie, marcher, mettre en pause, terminer, consulter la fiche) et
+de vérifier ensuite les données directement en base.
+
+Un test de contrat complète le dispositif : il extrait du code tous les appels
+`supabase.rpc('nom', { … })` et vérifie que chaque argument nommé existe dans la
+signature SQL correspondante. Une faute de frappe ne peut plus attendre la
+production pour se manifester.
+
+## 11. Conventions de code
 
 * TypeScript **strict**, aucun `any` de complaisance.
 * Aucune désactivation d'ESLint pour contourner un problème ; la seule

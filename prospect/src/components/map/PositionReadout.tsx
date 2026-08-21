@@ -24,8 +24,10 @@ export type PositionReadoutProps = {
 };
 
 /**
- * Panneau d'information GPS, ancré en bas de l'écran pour rester accessible au
- * pouce. Il affiche systématiquement l'incertitude : le GPS d'un smartphone est
+ * Panneau d'information GPS. Le positionnement est laissé au parent : deux
+ * panneaux superposés en `absolute` se recouvriraient et bloqueraient les clics.
+ *
+ * Il affiche systématiquement l'incertitude : le GPS d'un smartphone est
  * métrique, jamais centimétrique.
  */
 export function PositionReadout({
@@ -42,7 +44,7 @@ export function PositionReadout({
 
   if (!fix) {
     return (
-      <div className="absolute inset-x-3 bottom-3 z-10 pb-safe">
+      <div className="pb-safe">
         <div className="rounded-2xl border border-line bg-surface-1/95 p-4 backdrop-blur">
           <p className="text-sm text-ink-1">
             {status === 'requesting'
@@ -62,7 +64,7 @@ export function PositionReadout({
   const grade = gradeAccuracy(fix.accuracyM);
 
   return (
-    <div className="absolute inset-x-3 bottom-3 z-10 pb-safe">
+    <div className="pb-safe">
       <div className="rounded-2xl border border-line bg-surface-1/95 backdrop-blur">
         <div className="flex items-center justify-between gap-3 p-4">
           <div className="min-w-0">

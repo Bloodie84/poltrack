@@ -3,6 +3,51 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Versionnage sémantique.
 
+## [0.2.0] — Phase 2 : sorties et traces GPS
+
+### Ajouté
+
+**Base de données**
+- `sessions` : cycle démarrer / pause / reprendre / terminer, largeur de balayage
+  figée au démarrage, point de départ et point de retour en `geography`.
+  Un index unique partiel interdit deux sorties ouvertes simultanément.
+- `gps_points` : chaque fix retenu, avec incertitude, altitude, vitesse et cap.
+  L'identifiant vient du client, ce qui rend l'envoi idempotent.
+- `tracks` : trace consolidée et version simplifiée pour l'affichage, toutes
+  deux reconstruites à chaque insertion de points.
+- Fonctions `start_session`, `pause_session`, `resume_session`, `finish_session`,
+  `append_gps_points`, `set_vehicle_point`, `rebuild_track`, `tracks_in_bbox`,
+  `session_geojson` et vue `session_overview`, toutes soumises à la RLS.
+
+**Application**
+- Écran de terrain : chronomètre, distance, points, incertitude GPS, pause,
+  reprise, fin avec confirmation, et avertissement si le GPS est éteint.
+- Échantillonnage GPS réglable : intervalle, distance, changement de cap et
+  battement à l'arrêt ; les points trop incertains sont conservés mais exclus
+  de la trace.
+- Tampon local des points non confirmés : une coupure réseau ou un rechargement
+  ne perd aucun point. L'état « en attente / synchronisé » est affiché.
+- Historique des passages sur la carte, filtrable par période et borné à
+  l'emprise visible.
+- Liste paginée des sorties, fiche détaillée avec trace, statistiques, édition
+  du titre, des notes et du matériel, suppression logique.
+- Retour à la voiture : cap et distance calculés localement, donc sans réseau.
+- Maintien de l'écran allumé pendant une sortie quand le navigateur le permet.
+
+**Tests**
+- Banc d'essai `tests/harness` exposant la vraie base PostGIS via l'API attendue
+  par le client Supabase : le parcours complet d'une sortie est joué dans un
+  navigateur, contre le vrai SQL et la vraie RLS.
+- Test de contrat vérifiant que chaque argument nommé de chaque appel RPC du
+  code existe réellement dans la signature SQL correspondante.
+
+### Corrigé
+- Le panneau GPS, positionné en absolu, recouvrait le bouton « Démarrer une
+  sortie » et interceptait les clics : le bouton était inutilisable. Détecté par
+  les tests connectés.
+- Les colonnes `numeric` renvoyées sous forme de chaîne faisaient afficher « — »
+  à la place de la distance parcourue. Normalisation à la frontière des données.
+
 ## [0.1.0] — Phase 1 : fondations
 
 ### Ajouté

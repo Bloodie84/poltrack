@@ -25,6 +25,16 @@ const ITEMS: NavItem[] = [
     ),
   },
   {
+    href: '/sorties',
+    label: 'Sorties',
+    icon: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </>
+    ),
+  },
+  {
     href: '/materiel',
     label: 'Matériel',
     icon: <path d="M12 3v9m0 0-3.5 3.5a5 5 0 1 0 7 0L12 12Z" />,
@@ -69,7 +79,7 @@ export function AppNav() {
         aria-label="Navigation principale"
         className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface-1/95 backdrop-blur pb-safe md:hidden"
       >
-        <ul className="grid grid-cols-3">
+        <ul className="grid grid-cols-4">
           {ITEMS.map((item) => (
             <li key={item.href}>
               <Link
