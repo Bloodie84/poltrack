@@ -1,0 +1,77 @@
+name: Prospect — CI
+
+on:
+  push:
+    branches: ['**']
+    paths: ['prospect/**', '.github/workflows/prospect-ci.yml']
+  pull_request:
+    paths: ['prospect/**', '.github/workflows/prospect-ci.yml']
+
+defaults:
+  run:
+    working-directory: prospect
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # Image officielle PostGIS : les migrations et les tests spatiaux
+        # s'exécutent sur le même moteur qu'en production.
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: prospect_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/prospect_test
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/prospect_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: prospect/package-lock.json
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests unitaires
+        run: npm test
+
+      - name: Migrations
+        run: npm run db:migrate
+
+      - name: Tests d'intégration base de données
+        run: npm run test:db
+
+      - name: Build
+        run: npm run build
+
+      - name: Navigateur Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Tests de bout en bout
+        run: npm run test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: prospect/playwright-report/
+          retention-days: 7

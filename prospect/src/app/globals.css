@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+/*
+ * Thème sombre par défaut, pensé pour une lecture en plein soleil :
+ * contrastes élevés, accent unique (cyan) réservé aux informations GPS.
+ */
+@theme {
+  --color-surface-0: #070b12;
+  --color-surface-1: #0b1220;
+  --color-surface-2: #121b2c;
+  --color-surface-3: #1b2740;
+  --color-line: #26334d;
+
+  --color-ink-0: #f1f5f9;
+  --color-ink-1: #b6c2d4;
+  --color-ink-2: #7b8aa3;
+
+  --color-accent: #38bdf8;
+  --color-accent-strong: #0ea5e9;
+  --color-danger: #f87171;
+  --color-success: #34d399;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-surface-0);
+  color: var(--color-ink-0);
+  font-family: var(--font-sans);
+  /* Évite le rebond élastique qui gêne la lecture de la carte sur mobile. */
+  overscroll-behavior: none;
+}
+
+/* Zones sûres iOS (encoche, barre de gestes) en mode plein écran. */
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Cible tactile minimale recommandée, utilisable à une main. */
+@utility tap-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Habillage des contrôles MapLibre pour rester cohérent avec le thème. */
+.maplibregl-ctrl-attrib,
+.maplibregl-ctrl-scale {
+  background: rgba(11, 18, 32, 0.75) !important;
+  color: var(--color-ink-1) !important;
+  border-color: var(--color-line) !important;
+  font-size: 11px;
+}
+
+.maplibregl-ctrl-attrib a {
+  color: var(--color-ink-1) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
