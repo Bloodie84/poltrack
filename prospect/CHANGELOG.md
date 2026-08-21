@@ -48,10 +48,11 @@ Versionnage sémantique.
 - 25 tests d'intégration sur PostgreSQL/PostGIS : migrations rejouables, RLS,
   isolation entre utilisateurs, cascade de suppression, bornes des RPC,
   fondations des calculs de couverture.
-- 12 tests de bout en bout Playwright : rendu de la carte, activation du GPS,
+- 13 tests de bout en bout Playwright : rendu de la carte, activation du GPS,
   cadrage sur la première position, boutons de zoom réellement actifs,
   déplacement manuel coupant le suivi, affichage de l'incertitude, bascule
-  DD/DMS, navigation.
+  DD/DMS, navigation, et vérification au pixel près que le marqueur de position
+  est bien peint par WebGL (décodeur PNG minimal, sans dépendance ajoutée).
 
 ### Corrigé
 - `installPositionLayers` était appelée sur `styledata` avant que le style soit
@@ -66,6 +67,15 @@ Versionnage sémantique.
 - Les contrôles de carte (zoom, recentrage) étaient cliquables avant la fin du
   chargement de MapLibre et restaient alors sans effet : ils sont désormais
   explicitement désactivés jusqu'à ce que la carte accepte des commandes.
+- MapLibre déduit l'URL de son worker de `import.meta.url` ; une fois le paquet
+  empaqueté, cette URL désignait un chunk du bundle et le worker ne démarrait
+  pas. Conséquence silencieuse et sérieuse : **aucune source GeoJSON n'était
+  chargée**, le marqueur de position n'apparaissait jamais et rien n'était
+  signalé — ce qui aurait aussi bloqué les traces et les parcelles des phases
+  suivantes. Le worker est désormais servi depuis `public/maplibre/`
+  (`scripts/copy-maplibre-worker.mjs`, exécuté avant chaque build) et déclaré
+  via `setWorkerUrl()`. Un test de bout en bout lit les pixels du canevas pour
+  empêcher toute régression.
 
 ### Sécurité
 - Aucune clé secrète exposée au navigateur.

@@ -23,7 +23,7 @@ Projet, base de données, authentification, carte.
 - ✅ Point d'ouverture de la carte stocké en PostGIS (RPC validée côté serveur)
 - ✅ Interface responsive (barre basse mobile / colonne latérale ordinateur)
 - ✅ PWA installable : manifeste, icônes, service worker de coque
-- ✅ Tests : 59 unitaires, 25 d'intégration base, 12 de bout en bout
+- ✅ Tests : 59 unitaires, 25 d'intégration base, 13 de bout en bout
 
 ## Phase 2 — Sorties et traces GPS ⬜
 

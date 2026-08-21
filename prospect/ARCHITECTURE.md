@@ -113,6 +113,16 @@ page serveur (carte)
   d'extension unique pour les couches IGN / Géoplateforme de la phase 8, qui
   seront lues depuis le `GetCapabilities` du service, pas codées en dur.
 
+### Worker MapLibre
+
+MapLibre charge toutes les sources GeoJSON dans un **Web Worker** dont il déduit
+l'URL de `import.meta.url`. Après empaquetage, cette URL désigne un chunk du
+bundle : le worker ne démarre pas et plus aucune donnée vectorielle ne s'affiche,
+**sans la moindre erreur**. Le worker est donc copié dans `public/maplibre/` par
+`scripts/copy-maplibre-worker.mjs` (exécuté par `predev`, `prebuild` et
+`postinstall`) et déclaré via `setWorkerUrl()`. Un test de bout en bout lit les
+pixels du canevas pour garantir que le marqueur est réellement peint.
+
 ### Rotation et cap
 
 La rotation de la carte est désactivée : le nord reste en haut. Sur le terrain,
@@ -216,6 +226,7 @@ pour rester réversible.
 | **Photos hors ligne** | Le stockage navigateur est limité et peut être purgé. | Blobs en IndexedDB, téléversement dès le retour du réseau, avertissement explicite tant que la photo n'est pas synchronisée. |
 | **LiDAR HD** | Dalles volumineuses, services IGN évolutifs. | Lire le `GetCapabilities` plutôt que coder les URLs en dur ; traitements lourds (relief local) côté serveur. |
 | **Confidentialité du partage** | Un partage flou naïf reste réversible côté client. | Décalage appliqué en base avant l'envoi, jeton révocable, expiration. |
+| **Worker du moteur cartographique** | Une URL de worker cassée vide la carte en silence. | Worker servi depuis `public/`, URL explicite, test au pixel près. |
 | **Batterie** | `watchPosition` en continu + écran allumé. | Échantillonnage configurable, `Screen Wake Lock` optionnel, aucune animation superflue. |
 | **Cadre légal** | La détection est réglementée. | Fiche d'autorisation par terrain *(phase 4)* et rappel discret ; l'application n'encourage aucun usage illégal. |
 

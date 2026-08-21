@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { colorDistance, decodePng, hexToRgba } from './png';
 
 /**
  * Tuile PNG 1×1 transparente : les tests ne doivent dépendre ni du réseau ni
@@ -44,6 +45,40 @@ test.describe('Carte principale', () => {
     await expect(page.getByText('48.856600, 2.352200')).toBeVisible({ timeout: 15_000 });
     // L'incertitude est toujours annoncée, jamais masquée.
     await expect(page.getByText(/Précision/)).toContainText('± 8.0 m');
+  });
+
+  test('le marqueur de position est réellement peint sur la carte', async ({ page }) => {
+    await page.goto('/carte');
+    const canvas = page.locator('canvas.maplibregl-canvas');
+    await expect(canvas).toBeVisible({ timeout: 30_000 });
+
+    await page.getByRole('button', { name: 'Activer le GPS', exact: true }).click();
+
+    const scale = page.locator('.maplibregl-ctrl-scale');
+    await expect.poll(() => scale.innerText(), { timeout: 20_000 }).toMatch(/^\d+\s?m$/);
+    // Laisse l'animation de caméra se terminer avant de lire les pixels.
+    await page.waitForTimeout(1500);
+
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error('canevas introuvable');
+
+    // Le marqueur est peint par WebGL : seule une lecture de pixels prouve
+    // qu'il s'affiche vraiment. Une régression du worker MapLibre (qui charge
+    // toutes les sources GeoJSON) laisserait la carte silencieusement vide.
+    const shot = await page.screenshot({
+      clip: { x: box.x + box.width / 2 - 2, y: box.y + box.height / 2 - 2, width: 4, height: 4 },
+    });
+
+    const image = decodePng(shot);
+    const accent = hexToRgba('#38bdf8');
+    let closest = Number.POSITIVE_INFINITY;
+    for (let y = 0; y < image.height; y += 1) {
+      for (let x = 0; x < image.width; x += 1) {
+        closest = Math.min(closest, colorDistance(image.pixel(x, y), accent));
+      }
+    }
+
+    expect(closest, 'le point de position devrait être peint au centre').toBeLessThan(60);
   });
 
   test('bascule entre degrés décimaux et DMS', async ({ page }) => {

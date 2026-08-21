@@ -100,6 +100,7 @@ refusés. La page `/configuration` reprend cette procédure dans l'application.
 | `npm run db:migrate` | Applique les migrations en attente |
 | `npm run db:status` | Affiche l'état des migrations, sans rien écrire |
 | `npm run icons:generate` | Régénère les icônes PWA |
+| `npm run maplibre:worker` | Recopie le worker MapLibre dans `public/maplibre/` (automatique via `postinstall`, `predev` et `prebuild`) |
 
 ### Tests d'intégration base de données
 

@@ -1,12 +1,24 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { GeoJSONSource, Map as MapLibreMap, ScaleControl } from 'maplibre-gl';
+import { GeoJSONSource, Map as MapLibreMap, ScaleControl, setWorkerUrl } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { EMPTY_FEATURES, type PositionFeatures } from '@/lib/geo/position-feature';
 import { resolveBasemap, type BasemapId } from './basemaps';
 
 export const POSITION_SOURCE_ID = 'current-position';
+
+/**
+ * MapLibre déduit l'URL de son worker de `import.meta.url`. Après empaquetage,
+ * cette URL désigne un chunk du bundle et le fichier du worker n'existe plus à
+ * côté : le worker ne démarre pas et aucune source GeoJSON n'est chargée — le
+ * marqueur de position resterait invisible, sans la moindre erreur.
+ *
+ * Le worker est donc servi depuis `public/maplibre/` (voir
+ * `scripts/copy-maplibre-worker.mjs`, exécuté avant chaque build).
+ */
+export const MAPLIBRE_WORKER_URL = '/maplibre/maplibre-gl-worker.mjs';
+setWorkerUrl(MAPLIBRE_WORKER_URL);
 
 /**
  * (Ré)installe la source et les couches de position.

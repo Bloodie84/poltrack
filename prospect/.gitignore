@@ -46,3 +46,6 @@ next-env.d.ts
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# worker MapLibre recopié depuis node_modules par scripts/copy-maplibre-worker.mjs
+/public/maplibre/
