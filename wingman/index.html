@@ -1,0 +1,1272 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="robots" content="noindex,nofollow">
+<title>Wingman — gérer mes matchs et mes réponses</title>
+<meta name="description" content="Assistant privé : scoring des profils selon mes goûts, suivi des matchs, aide à la rédaction des réponses. Données stockées uniquement dans ce navigateur.">
+<style>@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@400;500;600;700;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0a0c; --s1:#141317; --s2:#1c1b20; --s3:#26242b;
+  --ln:#2a282f; --ln2:#3a3742;
+  --ink:#f7f6f4; --mut:#a5a2a8; --dim:#6f6c74;
+  --acc:#ff4d6d; --acc2:#ffb03a; --ok:#1baf7a; --warn:#c98500; --bad:#d94969;
+  --disp:'Instrument Serif',Georgia,serif;
+  --ui:'Inter Tight',system-ui,-apple-system,sans-serif;
+  --r:14px;
+}
+html{scrollbar-color:#3a3742 var(--bg);-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 var(--ui);-webkit-font-smoothing:antialiased;padding-bottom:40px}
+::selection{background:var(--acc);color:#0b0a0c}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+a{color:var(--acc)}
+input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:6px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.w{max-width:1080px;margin:0 auto;padding:0 16px}
+@media(min-width:760px){.w{padding:0 28px}}
+
+/* topbar */
+.top{position:sticky;top:0;z-index:60;background:rgba(11,10,12,.9);backdrop-filter:blur(14px);border-bottom:1px solid var(--ln)}
+.top .w{display:flex;align-items:center;gap:12px;height:58px}
+.logo{font:400 25px/1 var(--disp);white-space:nowrap}
+.logo em{font-style:italic;color:var(--acc)}
+.pill{margin-left:auto;font-size:11.5px;color:var(--dim);border:1px solid var(--ln);border-radius:20px;padding:4px 10px;white-space:nowrap}
+.pill.on{color:var(--ok);border-color:#1baf7a55}
+nav{border-bottom:1px solid var(--ln);background:var(--bg);position:sticky;top:58px;z-index:55}
+nav .w{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding-top:8px;padding-bottom:8px}
+nav .w::-webkit-scrollbar{display:none}
+nav button{padding:8px 14px;border-radius:20px;font:600 14px var(--ui);color:var(--mut);white-space:nowrap;border:1px solid transparent}
+nav button:hover{color:var(--ink);background:var(--s2)}
+nav button.on{color:#0b0a0c;background:var(--ink)}
+
+/* layout */
+main{padding-top:22px}
+.view{display:none}.view.on{display:block}
+h1{font:400 32px/1.15 var(--disp);margin-bottom:6px;letter-spacing:-.01em}
+h1 em{font-style:italic;color:var(--acc)}
+h2{font:700 15px var(--ui);text-transform:uppercase;letter-spacing:.08em;color:var(--mut);margin:26px 0 12px}
+.sub{color:var(--mut);font-size:14.5px;margin-bottom:20px;max-width:62ch}
+.card{background:var(--s1);border:1px solid var(--ln);border-radius:var(--r);padding:16px}
+.card+.card{margin-top:12px}
+.grid{display:grid;gap:12px}
+@media(min-width:760px){.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.spacer{flex:1}
+
+/* form */
+label{display:block;font:600 12.5px var(--ui);text-transform:uppercase;letter-spacing:.06em;color:var(--dim);margin-bottom:6px}
+input[type=text],input[type=number],input[type=password],select,textarea{
+  width:100%;background:var(--s2);border:1px solid var(--ln);border-radius:10px;padding:11px 12px;font-size:15px}
+textarea{resize:vertical;min-height:90px;line-height:1.5}
+input:focus,select:focus,textarea:focus{outline:0;border-color:var(--acc);background:var(--s3)}
+input::placeholder,textarea::placeholder{color:var(--dim)}
+.field{margin-bottom:14px}
+.hint{font-size:12.5px;color:var(--dim);margin-top:5px}
+input[type=range]{width:100%;accent-color:var(--acc);background:transparent}
+.btn{background:var(--ink);color:#0b0a0c;border-radius:10px;padding:11px 18px;font-weight:700;font-size:14.5px}
+.btn:hover{opacity:.88}
+.btn.acc{background:var(--acc);color:#fff}
+.btn.ghost{background:var(--s2);color:var(--ink);border:1px solid var(--ln)}
+.btn.sm{padding:7px 12px;font-size:13px;border-radius:9px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.chk{display:flex;align-items:center;gap:9px;font-size:14.5px;color:var(--ink);text-transform:none;letter-spacing:0;margin-bottom:0}
+.chk input{width:17px;height:17px;accent-color:var(--acc);flex:none}
+
+/* tags */
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tag{background:var(--s3);border:1px solid var(--ln2);border-radius:20px;padding:4px 10px;font-size:12.5px;color:var(--mut);display:inline-flex;gap:6px;align-items:center}
+.tag.hit{border-color:#1baf7a66;color:#7fe0bb}
+.tag.red{border-color:#d9496966;color:#ffa7b8}
+label.tag{text-transform:none;letter-spacing:0;font-weight:500;font-size:12.5px;margin-bottom:0;color:var(--ink)}
+.tag button{color:var(--dim);font-size:14px;line-height:1}
+.tag button:hover{color:var(--acc)}
+
+/* score */
+.score{display:flex;align-items:baseline;gap:8px}
+.score b{font:400 46px/1 var(--disp)}
+.gauge{height:9px;border-radius:6px;background:var(--s3);overflow:hidden;margin-top:10px}
+.gauge i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#d94969,#ffb03a,#1baf7a);transition:width .5s}
+.bar{display:flex;align-items:center;gap:10px;font-size:13.5px;margin-bottom:7px}
+.bar span:first-child{width:118px;flex:none;color:var(--mut)}
+.bar .t{flex:1;height:7px;border-radius:5px;background:var(--s3);overflow:hidden}
+.bar .t i{display:block;height:100%;background:var(--acc2)}
+.bar .t i.g{background:var(--ok)}.bar .t i.r{background:var(--bad)}
+.bar em{font-style:normal;color:var(--dim);width:36px;text-align:right;flex:none;font-size:12.5px}
+.verdict{display:inline-block;border-radius:20px;padding:5px 13px;font-weight:700;font-size:13.5px}
+.v-top{background:#1baf7a22;color:#7fe0bb;border:1px solid #1baf7a55}
+.v-yes{background:#ffb03a22;color:#ffd08a;border:1px solid #ffb03a55}
+.v-mid{background:#8d839122;color:#c9c3cf;border:1px solid #8d839155}
+.v-no{background:#d9496922;color:#ffa7b8;border:1px solid #d9496955}
+
+/* match list */
+.mlist{display:grid;gap:10px}
+.m{background:var(--s1);border:1px solid var(--ln);border-radius:var(--r);padding:14px;cursor:pointer;display:flex;gap:14px;align-items:center;text-align:left;width:100%}
+.m:hover{border-color:var(--ln2);background:var(--s2)}
+.m .av{width:44px;height:44px;border-radius:50%;flex:none;display:grid;place-items:center;font:700 17px var(--ui);background:var(--s3);color:var(--acc)}
+.m .nm{font-weight:700;font-size:16px}
+.m .meta{font-size:13px;color:var(--dim);margin-top:2px}
+.m .sc{margin-left:auto;text-align:right;flex:none}
+.m .sc b{font:400 24px/1 var(--disp)}
+.badge{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:2px 7px;margin-left:6px;vertical-align:middle}
+.b-you{background:var(--acc);color:#fff}
+.b-old{background:#c9850033;color:#ffd08a}
+.b-st{background:var(--s3);color:var(--mut)}
+.empty{border:1px dashed var(--ln2);border-radius:var(--r);padding:34px 18px;text-align:center;color:var(--dim);font-size:14.5px}
+
+/* stats */
+.stat{background:var(--s1);border:1px solid var(--ln);border-radius:var(--r);padding:14px}
+.stat b{display:block;font:400 34px/1.1 var(--disp);color:var(--ink)}
+.stat span{font-size:12.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+
+/* convo */
+.convo{display:flex;flex-direction:column;gap:8px;max-height:380px;overflow-y:auto;padding:4px}
+.msg{max-width:82%;padding:9px 13px;border-radius:16px;font-size:14.5px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word;position:relative}
+.msg.elle{background:var(--s3);border-bottom-left-radius:5px;align-self:flex-start}
+.msg.moi{background:var(--acc);color:#fff;border-bottom-right-radius:5px;align-self:flex-end}
+.msg button{position:absolute;top:2px;right:6px;font-size:12px;color:#ffffff88;display:none}
+.msg:hover button{display:block}
+.msg.elle button{color:var(--dim)}
+.sugg{background:var(--s2);border:1px solid var(--ln2);border-radius:12px;padding:13px;margin-bottom:10px}
+.sugg p{font-size:15px;line-height:1.5;white-space:pre-wrap}
+.sugg .why{font-size:12.5px;color:var(--dim);margin-top:8px;border-top:1px solid var(--ln);padding-top:8px}
+.sugg .act{display:flex;gap:8px;margin-top:10px}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--ln2);border-top-color:var(--acc);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#0b0a0c;font-weight:700;font-size:14px;padding:11px 20px;border-radius:24px;z-index:200;opacity:0;transition:.25s;pointer-events:none}
+.toast.on{transform:translateX(-50%) translateY(0);opacity:1}
+.warn{background:#c9850018;border:1px solid #c9850055;color:#ffd08a;border-radius:10px;padding:11px 13px;font-size:13.5px;line-height:1.5}
+.err{background:#d9496918;border:1px solid #d9496955;color:#ffa7b8;border-radius:10px;padding:11px 13px;font-size:13.5px;line-height:1.5}
+.back{color:var(--mut);font-size:14px;font-weight:600;margin-bottom:12px;display:inline-block}
+.back:hover{color:var(--ink)}
+hr{border:0;border-top:1px solid var(--ln);margin:18px 0}
+.foot{color:var(--dim);font-size:12.5px;text-align:center;margin-top:40px;line-height:1.7}
+</style></head><body>
+
+<header class="top"><div class="w">
+  <div class="logo">Wing<em>man</em></div>
+  <div class="pill" id="aistate">mode local</div>
+</div></header>
+
+<nav><div class="w" id="nav"></div></nav>
+
+<main class="w">
+
+<!-- ============ DASHBOARD ============ -->
+<section class="view" id="v-home">
+  <h1>Ton <em>tableau de bord</em></h1>
+  <p class="sub">Tout est stocké dans ce navigateur uniquement. Rien n'est envoyé nulle part, sauf si tu actives l'aide IA dans Réglages.</p>
+  <div class="grid g4" id="stats"></div>
+  <h2>À traiter maintenant</h2>
+  <div class="mlist" id="todo"></div>
+  <h2>Derniers matchs</h2>
+  <div class="mlist" id="recent"></div>
+</section>
+
+<!-- ============ GOÛTS ============ -->
+<section class="view" id="v-gouts">
+  <h1>Mes <em>goûts</em></h1>
+  <p class="sub">C'est la base : le scoring des profils et le ton des réponses sont calculés à partir d'ici. Les curseurs disent à quel point chaque critère compte pour toi (0 = je m'en fous, 5 = déterminant).</p>
+
+  <div class="card">
+    <h2 style="margin-top:0">Critères</h2>
+    <div class="grid g3">
+      <div class="field"><label>Âge idéal</label><input type="number" id="p-ageIdeal" min="18" max="80"></div>
+      <div class="field"><label>Âge min</label><input type="number" id="p-ageMin" min="18" max="80"></div>
+      <div class="field"><label>Âge max</label><input type="number" id="p-ageMax" min="18" max="80"></div>
+    </div>
+    <div class="grid g3">
+      <div class="field"><label>Distance max (km)</label><input type="number" id="p-distMax" min="1" max="500"></div>
+      <div class="field"><label>Taille min (cm)</label><input type="number" id="p-hMin" min="120" max="210"></div>
+      <div class="field"><label>Taille max (cm)</label><input type="number" id="p-hMax" min="120" max="210"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Poids des critères</h2>
+    <div class="grid g2" id="weights"></div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Ce que j'aime</h2>
+    <div class="field">
+      <label>Centres d'intérêt / traits recherchés</label>
+      <div class="row"><input type="text" id="int-in" placeholder="ex. voyage, sport, humour noir, cuisine…" style="flex:1;min-width:180px"><button class="btn sm ghost" id="int-add">Ajouter</button></div>
+      <div class="tags" id="int-tags"></div>
+      <p class="hint">Tape plusieurs mots séparés par des virgules, ou valide avec Entrée.</p>
+    </div>
+    <div class="field">
+      <label>Red flags (rédhibitoires ou presque)</label>
+      <div class="row"><input type="text" id="rf-in" placeholder="ex. fume, que des photos de groupe, bio vide…" style="flex:1;min-width:180px"><button class="btn sm ghost" id="rf-add">Ajouter</button></div>
+      <div class="tags" id="rf-tags"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Mon style de message</h2>
+    <div class="grid g3">
+      <div class="field"><label>Ton par défaut</label><select id="p-ton"></select></div>
+      <div class="field"><label>Longueur</label><select id="p-long">
+        <option value="court">Court (1 ligne)</option><option value="moyen">Moyen (2-3 lignes)</option><option value="long">Long (petit paragraphe)</option></select></div>
+      <div class="field"><label>Emojis</label><select id="p-emoji">
+        <option value="aucun">Aucun</option><option value="peu">Un de temps en temps</option><option value="souvent">J'en mets souvent</option></select></div>
+    </div>
+    <div class="field"><label>Comment je parle (exemples de mes vrais messages)</label>
+      <textarea id="p-voix" placeholder="Colle 3-4 messages que tu as vraiment envoyés. Plus c'est authentique, plus les suggestions te ressembleront."></textarea></div>
+    <div class="field"><label>À éviter absolument</label>
+      <textarea id="p-evite" placeholder="ex. les compliments sur le physique en ouverture, le vouvoiement, les « ça va ? »" style="min-height:60px"></textarea></div>
+    <div class="field"><label>Sur moi (2-3 lignes utiles pour rebondir)</label>
+      <textarea id="p-moi" placeholder="ex. 28 ans, Lyon, je fais de l'escalade, je bosse dans la tech, je pars souvent en van le week-end" style="min-height:60px"></textarea></div>
+    <button class="btn acc" id="p-save">Enregistrer mes goûts</button>
+  </div>
+</section>
+
+<!-- ============ SCANNER ============ -->
+<section class="view" id="v-scan">
+  <h1>Scanner un <em>profil</em></h1>
+  <p class="sub">Recopie ce que tu vois sur son profil, l'app calcule un score de compatibilité avec tes goûts et te propose une accroche. Tu peux ensuite l'enregistrer dans tes matchs.</p>
+  <div class="grid g2">
+    <div>
+      <div class="card">
+        <div class="grid g2">
+          <div class="field"><label>Prénom</label><input type="text" id="s-name" placeholder="Camille"></div>
+          <div class="field"><label>Âge</label><input type="number" id="s-age" min="18" max="99"></div>
+        </div>
+        <div class="grid g2">
+          <div class="field"><label>Distance (km)</label><input type="number" id="s-dist" min="0" max="999"></div>
+          <div class="field"><label>Taille (cm)</label><input type="number" id="s-height" min="120" max="210" placeholder="optionnel"></div>
+        </div>
+        <div class="field"><label>Sa bio</label><textarea id="s-bio" placeholder="Colle sa bio telle quelle."></textarea></div>
+        <div class="field"><label>Ses centres d'intérêt / ce qu'on voit sur les photos</label>
+          <input type="text" id="s-tags" placeholder="rando, chien, festival, voyage… (virgules)"></div>
+        <div class="grid g3">
+          <div class="field"><label>Photos <b id="l-photo" style="color:var(--acc)">3</b>/5</label><input type="range" id="s-photo" min="1" max="5" value="3"></div>
+          <div class="field"><label>Bio <b id="l-bio" style="color:var(--acc)">3</b>/5</label><input type="range" id="s-bioq" min="1" max="5" value="3"></div>
+          <div class="field"><label>Feeling <b id="l-vibe" style="color:var(--acc)">3</b>/5</label><input type="range" id="s-vibe" min="1" max="5" value="3"></div>
+        </div>
+        <div class="field"><label>Red flags repérés</label><div class="tags" id="s-rf"></div></div>
+        <div class="row">
+          <button class="btn acc" id="s-go">Calculer le score</button>
+          <button class="btn ghost" id="s-ai">Analyser sa bio avec l'IA</button>
+          <button class="btn ghost" id="s-reset">Vider</button>
+        </div>
+      </div>
+    </div>
+    <div id="s-out"></div>
+  </div>
+</section>
+
+<!-- ============ MATCHS ============ -->
+<section class="view" id="v-matchs">
+  <div id="m-list">
+    <h1>Mes <em>matchs</em></h1>
+    <div class="row" style="margin-bottom:16px">
+      <input type="text" id="m-search" placeholder="Chercher un prénom…" style="flex:1;min-width:160px">
+      <select id="m-filter" style="width:auto"></select>
+      <select id="m-sort" style="width:auto">
+        <option value="activity">Trier : activité</option>
+        <option value="score">Trier : score</option>
+        <option value="name">Trier : prénom</option>
+      </select>
+    </div>
+    <div class="mlist" id="m-items"></div>
+  </div>
+  <div id="m-detail" style="display:none"></div>
+</section>
+
+<!-- ============ RÉGLAGES ============ -->
+<section class="view" id="v-set">
+  <h1><em>Réglages</em></h1>
+  <div class="card">
+    <h2 style="margin-top:0">Aide IA (Claude)</h2>
+    <p class="sub" style="margin-bottom:14px">Sans clé, l'app marche quand même : le moteur local écrit des suggestions à partir de modèles de phrases. Avec une clé API Anthropic, les réponses sont écrites sur mesure à partir de la conversation, de son profil et de ton style.</p>
+    <div class="warn" style="margin-bottom:14px">La clé est stockée en clair dans le <b>localStorage de ce navigateur</b> et part directement de ton navigateur vers api.anthropic.com. N'utilise cette page que sur un appareil qui est à toi, et ne publie jamais cette page en ligne avec ta clé dedans.</div>
+    <div class="field"><label>Clé API Anthropic</label>
+      <input type="password" id="k-key" placeholder="sk-ant-…" autocomplete="off">
+      <p class="hint">Elle se crée sur console.anthropic.com → API keys. Usage facturé à la consommation.</p></div>
+    <div class="grid g2">
+      <div class="field"><label>Modèle</label><select id="k-model"></select></div>
+      <div class="field"><label>Niveau de réflexion</label><select id="k-effort">
+        <option value="low">Rapide et pas cher</option><option value="medium">Équilibré</option><option value="high">Soigné</option></select></div>
+    </div>
+    <div class="row"><button class="btn acc" id="k-save">Enregistrer</button><button class="btn ghost" id="k-test">Tester la connexion</button></div>
+    <div id="k-out" style="margin-top:12px"></div>
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0">Mes données</h2>
+    <p class="sub" style="margin-bottom:14px">Tout vit dans ce navigateur. Vide le cache du site et tout disparaît : pense à exporter de temps en temps.</p>
+    <div class="row">
+      <button class="btn ghost" id="d-export">Exporter (.json)</button>
+      <button class="btn ghost" id="d-import">Importer</button>
+      <input type="file" id="d-file" accept="application/json" style="display:none">
+      <button class="btn ghost" id="d-demo">Charger un exemple</button>
+      <button class="btn ghost" id="d-wipe" style="color:var(--acc)">Tout effacer</button>
+    </div>
+  </div>
+  <p class="foot">Wingman — assistant privé de rédaction et de suivi.<br>Écris comme toi : ces suggestions sont là pour t'aider à trouver tes mots, pas pour jouer un personnage.</p>
+</section>
+
+</main>
+<div class="toast" id="toast"></div>
+<script>
+'use strict';
+/* ============================================================
+   Wingman — app 100% locale (localStorage), aide IA optionnelle
+   ============================================================ */
+
+const KEY = 'wingman.v1';
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const DAY = 86400000;
+
+const CRITERIA = [
+  ['age',      'Âge'],
+  ['dist',     'Distance'],
+  ['photo',    'Attirance physique'],
+  ['interets', 'Centres d’intérêt communs'],
+  ['bio',      'Qualité de la bio'],
+  ['vibe',     'Feeling général'],
+  ['taille',   'Taille']
+];
+
+const TONES = [
+  ['taquin',  'Taquin / joueur'],
+  ['drole',   'Drôle'],
+  ['sincere', 'Sincère'],
+  ['direct',  'Direct'],
+  ['calme',   'Posé / adulte']
+];
+
+const STATUSES = [
+  ['nouveau',    'Nouveau match'],
+  ['conversation','En conversation'],
+  ['numero',     'Numéro obtenu'],
+  ['date_prevu', 'Date prévu'],
+  ['date_fait',  'Date passé'],
+  ['standby',    'En stand-by'],
+  ['stop',       'Terminé']
+];
+
+const MODELS = [
+  ['claude-opus-5',    'Claude Opus 5 — le meilleur', true],
+  ['claude-sonnet-5',  'Claude Sonnet 5 — moins cher', true],
+  ['claude-haiku-4-5', 'Claude Haiku 4.5 — le plus rapide', false]
+];
+
+const DEFAULTS = () => ({
+  profile: {
+    ageIdeal: 27, ageMin: 22, ageMax: 34, distMax: 30, hMin: 155, hMax: 180,
+    weights: { age: 3, dist: 2, photo: 4, interets: 4, bio: 2, vibe: 4, taille: 1 },
+    interets: [], redflags: ['Bio vide', 'Que des photos de groupe', 'Cherche juste des likes'],
+    ton: 'taquin', longueur: 'court', emoji: 'peu', voix: '', evite: '', moi: ''
+  },
+  matches: [],
+  settings: { key: '', model: 'claude-opus-5', effort: 'medium' }
+});
+
+let S = load();
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return DEFAULTS();
+    const d = JSON.parse(raw), base = DEFAULTS();
+    return {
+      profile: Object.assign(base.profile, d.profile || {}, { weights: Object.assign(base.profile.weights, (d.profile || {}).weights || {}) }),
+      matches: Array.isArray(d.matches) ? d.matches : [],
+      settings: Object.assign(base.settings, d.settings || {})
+    };
+  } catch (e) { console.warn(e); return DEFAULTS(); }
+}
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(S)); }
+  catch (e) { toast('Sauvegarde impossible (stockage plein ?)'); }
+}
+let toastT;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2200);
+}
+function ago(ts) {
+  if (!ts) return 'jamais';
+  const d = Math.floor((Date.now() - ts) / DAY);
+  if (d <= 0) return 'aujourd’hui';
+  if (d === 1) return 'hier';
+  if (d < 7) return 'il y a ' + d + ' j';
+  if (d < 60) return 'il y a ' + Math.floor(d / 7) + ' sem';
+  return 'il y a ' + Math.floor(d / 30) + ' mois';
+}
+const splitTags = s => String(s || '').split(/[,;\n]/).map(x => x.trim()).filter(Boolean);
+const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+/* ============================ NAVIGATION ============================ */
+const VIEWS = [['home', 'Tableau de bord'], ['scan', 'Scanner un profil'], ['matchs', 'Mes matchs'], ['gouts', 'Mes goûts'], ['set', 'Réglages']];
+function nav(id) {
+  $$('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + id));
+  $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === id));
+  location.hash = id;
+  if (id === 'home') renderHome();
+  if (id === 'matchs') renderMatches();
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+$('#nav').innerHTML = VIEWS.map(([id, l]) => `<button data-v="${id}">${l}</button>`).join('');
+$('#nav').onclick = e => { const b = e.target.closest('button'); if (b) nav(b.dataset.v); };
+
+/* ============================ SCORING ============================ */
+function scoreOf(c) {
+  const p = S.profile, W = p.weights, parts = [];
+  const push = (k, v, note) => parts.push({ k, label: (CRITERIA.find(x => x[0] === k) || [, k])[1], w: W[k] || 0, v: clamp(v, 0, 1), note });
+
+  // âge
+  const age = +c.age || 0;
+  if (age) {
+    let v;
+    if (age < p.ageMin || age > p.ageMax) {
+      const over = age < p.ageMin ? p.ageMin - age : age - p.ageMax;
+      v = clamp(0.35 - over * 0.1, 0, 0.35);
+    } else {
+      const span = Math.max(3, Math.max(p.ageIdeal - p.ageMin, p.ageMax - p.ageIdeal));
+      v = 1 - Math.abs(age - p.ageIdeal) / (span * 1.6);
+    }
+    push('age', v, age + ' ans (idéal ' + p.ageIdeal + ')');
+  } else push('age', 0.5, 'non renseigné');
+
+  // distance
+  const d = c.dist === '' || c.dist == null ? null : +c.dist;
+  if (d == null || isNaN(d)) push('dist', 0.5, 'non renseignée');
+  else push('dist', d <= p.distMax * 0.4 ? 1 : 1 - (d - p.distMax * 0.4) / (p.distMax * 1.4), d + ' km (max ' + p.distMax + ')');
+
+  push('photo', (+c.photo || 3) / 5, (+c.photo || 3) + '/5');
+  push('bio', (+c.bioq || 3) / 5, (+c.bioq || 3) + '/5');
+  push('vibe', (+c.vibe || 3) / 5, (+c.vibe || 3) + '/5');
+
+  // intérêts communs : ses tags + sa bio contre mes intérêts
+  const hay = norm(splitTags(c.tags).join(' ') + ' ' + (c.bio || ''));
+  const mine = p.interets || [];
+  const hits = mine.filter(t => {
+    const n = norm(t);
+    return n.length > 2 && hay.includes(n.slice(0, Math.max(4, n.length - 1)));
+  });
+  push('interets', mine.length ? clamp(hits.length / Math.min(3, mine.length), 0, 1) : 0.5,
+    mine.length ? (hits.length ? hits.join(', ') : 'aucun point commun repéré') : 'aucun intérêt défini');
+
+  // taille
+  const h = +c.height || 0;
+  if (!h) push('taille', 0.5, 'non renseignée');
+  else if (h >= p.hMin && h <= p.hMax) push('taille', 1, h + ' cm');
+  else push('taille', clamp(1 - (h < p.hMin ? p.hMin - h : h - p.hMax) / 15, 0, 1), h + ' cm (hors ' + p.hMin + '-' + p.hMax + ')');
+
+  const tw = parts.reduce((a, x) => a + x.w, 0);
+  let score = tw ? parts.reduce((a, x) => a + x.v * x.w, 0) / tw * 100 : 50;
+
+  const rf = c.redflags || [];
+  const penalty = Math.min(45, rf.length * 14);
+  score = clamp(score - penalty, 0, 100);
+
+  const verdict = score >= 75 ? ['Coup de cœur — like sans hésiter', 'v-top']
+    : score >= 60 ? ['Ça vaut le like', 'v-yes']
+    : score >= 45 ? ['À voir — regarde ses autres photos', 'v-mid']
+    : ['Passe ton chemin', 'v-no'];
+
+  return { score: Math.round(score), parts, penalty, verdict: verdict[0], vclass: verdict[1], hits };
+}
+
+function scoreCardHTML(r, c) {
+  const strong = [...r.parts].filter(x => x.w > 0).sort((a, b) => (b.v * b.w) - (a.v * a.w));
+  const weak = [...r.parts].filter(x => x.w > 0).sort((a, b) => ((1 - a.v) * a.w) - ((1 - b.v) * b.w)).reverse();
+  return `<div class="card">
+    <div class="row"><div class="score"><b>${r.score}</b><span style="color:var(--dim)">/100</span></div>
+    <div class="spacer"></div><span class="verdict ${r.vclass}">${esc(r.verdict)}</span></div>
+    <div class="gauge"><i style="width:${r.score}%"></i></div>
+    <hr>
+    ${r.parts.filter(x => x.w > 0).map(x => `<div class="bar"><span>${esc(x.label)}</span>
+      <span class="t"><i class="${x.v >= .7 ? 'g' : x.v <= .35 ? 'r' : ''}" style="width:${Math.round(x.v * 100)}%"></i></span>
+      <em>×${x.w}</em></div>
+      <p class="hint" style="margin:-4px 0 9px 128px">${esc(x.note)}</p>`).join('')}
+    ${r.penalty ? `<div class="err">−${r.penalty} points : ${esc((c.redflags || []).join(', '))}</div>` : ''}
+    <hr>
+    <p style="font-size:14px"><b style="color:#7fe0bb">Ce qui joue pour elle :</b> ${esc(strong.slice(0, 2).map(x => x.label.toLowerCase()).join(', ')) || '—'}<br>
+    <b style="color:#ffa7b8">Ce qui la plombe :</b> ${esc(weak.slice(0, 2).filter(x => x.v < .7).map(x => x.label.toLowerCase()).join(', ')) || 'rien de bloquant'}</p>
+  </div>`;
+}
+
+/* ============================ MOTEUR LOCAL DE RÉPONSES ============================ */
+const INTENTS = [
+  ['ouverture',  'Premier message'],
+  ['relancer',   'Relancer (elle n’a pas répondu)'],
+  ['repondre',   'Répondre à son dernier message'],
+  ['rire',       'La faire rire'],
+  ['flirt',      'Monter d’un cran / flirter'],
+  ['numero',     'Demander son numéro'],
+  ['date',       'Proposer un date'],
+  ['sec',        'Elle répond sec, débloquer'],
+  ['apres',      'Après le date']
+];
+
+const T = {
+  ouverture: {
+    taquin: ['{n}, réponds honnêtement : {i}, c’est une vraie passion ou juste un bon prétexte à photos ?',
+             'J’hésite entre te parler de {i} et te lancer un débat inutile. Tu préfères lequel ?',
+             'Alors {n}, tu as l’air de quelqu’un qui a des avis très tranchés. Vas-y, donne-moi le pire.'],
+    drole: ['Petit sondage : {i}, c’est mieux le matin ou quand personne ne regarde ? J’ai besoin d’un avis d’expert.',
+            '{n}, je te propose un marché : tu m’expliques {i}, je t’explique pourquoi je suis nul en {mi}.',
+            'Je suis venu, j’ai vu {i} sur ton profil, je suis resté. Voilà, c’était mon accroche.'],
+    sincere: ['Salut {n}, ton profil m’a vraiment fait sourire — surtout {i}. Tu fais ça depuis longtemps ?',
+              'Hey {n}, honnêtement c’est {i} qui m’a donné envie de t’écrire. Raconte.',
+              'Salut {n}. Je préfère commencer simple : qu’est-ce qui t’a occupé cette semaine ?'],
+    direct: ['{n}, ton profil me plaît. On se dit quoi, on discute ici ou on va direct boire un verre ?',
+             'Je vais faire simple : tu me plais, et {i} m’intrigue. Ton programme du week-end ?',
+             'Salut {n}, je like rarement. Là j’avais envie de savoir à quoi tu ressembles quand tu parles.'],
+    calme: ['Salut {n}, j’ai aimé ton profil, notamment {i}. Comment se passe ta semaine ?',
+            'Hey {n}. {i} : c’est récent chez toi, ou c’est ton truc depuis toujours ?',
+            'Salut {n}, ravi du match. Raconte-moi un truc que tu as hâte de faire bientôt.']
+  },
+  relancer: {
+    taquin: ['{n}, je crois que mon message s’est perdu quelque part entre ton écran et ta vie sociale. On réessaie ?',
+             'Je te laisse une deuxième chance de me répondre, c’est ma dernière offre commerciale.',
+             'Bon, soit tu m’as oublié, soit tu es en pleine négociation avec ton canapé. Je parie sur le deuxième.'],
+    drole: ['Message de relance n°1 sur 1. Après j’abandonne et je vais parler à mon frigo.',
+            'Je remonte dans ta liste comme un vieux tube de l’été. Coucou {n}.',
+            'Toc toc. Il y a quelqu’un derrière ce profil ou c’est un très beau décor ?'],
+    sincere: ['Hey {n}, tu m’es passée sous le radar et je le regrette. Ça donne quoi de ton côté ?',
+              'Je relance une fois, sans insister : j’avais vraiment envie de discuter avec toi.',
+              'Salut {n}, je sais que Tinder c’est le chaos. Si tu as encore envie de parler, je suis là.'],
+    direct: ['{n}, je préfère demander clairement : ça t’intéresse ou je te laisse tranquille ?',
+             'Une dernière tentative et je lâche l’affaire, promis. Tu es dispo cette semaine ?',
+             'Toujours partante pour discuter, ou c’est passé ?'],
+    calme: ['Salut {n}, je reviens simplement voir si tu as eu le temps. Pas de pression.',
+            'Hey, je remonte mon message au cas où il soit tombé au fond de tes notifs.',
+            'Salut {n}, j’espère que ta semaine est plus calme. On reprend où on s’était arrêtés ?']
+  },
+  repondre: {
+    taquin: ['Attends, tu viens de dire « {q} » et tu croyais que j’allais laisser passer ?',
+             'D’accord, mais tu réalises que « {q} » demande une explication complète ?',
+             'Je note « {q} ». Ça se défend. Argumente.'],
+    drole: ['« {q} » — voilà, tu viens de gagner trois points. Il t’en reste sept avant le verre.',
+            'Je suis à deux doigts de te croire. Détaille un peu, ça m’intrigue.',
+            'Bon, on est officiellement passés à la partie intéressante de la conversation.'],
+    sincere: ['Ça me parle, ce que tu dis. Et toi, comment tu t’es retrouvée là-dedans ?',
+              'J’aime bien ta façon de voir les choses. Raconte-moi la suite.',
+              'Franchement, c’est exactement le genre de sujet qui m’intéresse. Développe.'],
+    direct: ['Concrètement, tu ferais quoi si on avait un vendredi soir libre à occuper ?',
+             'Ok, on garde ça pour le vrai débat en face. Tu es dispo quel soir ?',
+             'Je préfère te le dire : tu es la conversation la plus agréable de ma semaine.'],
+    calme: ['Intéressant. Et qu’est-ce qui t’a amenée là ?',
+            'Je vois bien ce que tu veux dire. De mon côté, c’est plutôt {mi}.',
+            'Merci pour la réponse. Question suivante, plus sérieuse : {i}, ça compte beaucoup pour toi ?']
+  },
+  rire: {
+    taquin: ['Je te préviens, j’ai un humour de niveau « blague de papa mais assumée ».',
+             'On peut faire semblant d’avoir une conversation profonde, ou on peut parler de {i}. Je te laisse choisir le pire.',
+             'Petit test de compatibilité : sur une échelle de 1 à 10, à quel point tu es insupportable au réveil ?'],
+    drole: ['Théorie du jour : tout le monde ment sur son profil sauf sur les chiens. Tu confirmes ?',
+            'Je cherche quelqu’un pour juger les gens en terrasse avec moi. Le poste est ouvert.',
+            'Vrai débat : ananas sur la pizza, ça se soigne ou ça s’accepte ?'],
+    sincere: ['Tu as l’air d’être la personne qui rit trop fort au cinéma. J’aime bien ça.',
+              'J’ai souri en lisant ton message, ce qui est déjà mieux que 90% de mes conversations.',
+              'Tu as un humour que je sens compatible avec le mien. Preuve à venir.'],
+    direct: ['Je t’aurais bien fait rire en vrai, c’est nettement plus efficace qu’en texto.',
+             'Mes meilleures vannes ne passent pas à l’écrit. Il va falloir un verre.',
+             'Je te garde une blague pour vendredi. Elle est mauvaise, ça vaut le déplacement.'],
+    calme: ['Tu m’as fait sourire, c’est noté au dossier.',
+            'J’aime bien les gens qui ne se prennent pas au sérieux. Ça se confirme, là.',
+            'Ok, tu marques un point sur l’humour. Le reste, on verra en vrai.']
+  },
+  flirt: {
+    taquin: ['Je te trouve dangereusement bonne cliente pour mes bêtises. Continue.',
+             'Tu es en train de devenir la raison pour laquelle je regarde mon téléphone trop souvent. Bravo.',
+             'Si tu continues comme ça, je vais finir par t’inviter quelque part.'],
+    drole: ['Attention, je commence à te trouver sympa. C’est une pente très glissante.',
+            'Tu es officiellement passée du statut « match » au statut « je vérifie mes messages ».',
+            'Je préviens : je flirte mal mais avec une grande sincérité.'],
+    sincere: ['J’aime bien parler avec toi, et j’avoue que j’ai envie de voir ce que ça donne en vrai.',
+              'Tu me plais. C’était le message.',
+              'Il y a un truc chez toi qui me donne envie de mieux te connaître, pas juste par écrans.'],
+    direct: ['Tu me plais, et je préfère te le dire plutôt que de tourner autour.',
+             'On arrête de faire semblant : j’ai envie de te voir.',
+             'Je suis clairement intéressé. La balle est dans ton camp.'],
+    calme: ['Je te le dis calmement : tu m’intéresses.',
+            'J’apprécie beaucoup nos échanges, et j’ai envie que ça continue ailleurs qu’ici.',
+            'Pas de grand discours : j’aimerais te revoir. Ou te voir, plutôt.']
+  },
+  numero: {
+    taquin: ['Bon, l’appli commence à nous coûter de la place mentale. Tu me donnes ton numéro ?',
+             'Je te propose une évasion : ton numéro, et on continue là où il y a moins de bruit.',
+             'Dernière étape avant le niveau suivant : dix chiffres.'],
+    drole: ['Tinder me stresse, il y a trop de monde. On échange nos numéros et on se cache ?',
+            'Mon forfait a plus de personnalité que cette appli. Tu me donnes ton numéro ?',
+            'Je te propose une migration officielle vers WhatsApp. Tu signes ?'],
+    sincere: ['J’ouvre peu l’appli, ça serait plus simple par message. Tu veux qu’on échange nos numéros ?',
+              'Je préfère continuer ailleurs qu’ici, si tu es d’accord. Ton numéro ?',
+              'Ça te dit qu’on passe sur WhatsApp ? Je réponds beaucoup mieux.'],
+    direct: ['Ton numéro, et on organise ce verre correctement.',
+             'On passe sur WhatsApp ? C’est plus simple pour se caler un truc.',
+             'Donne-moi ton numéro, je te propose un créneau ce soir.'],
+    calme: ['Ça serait plus pratique par message. Tu me donnes ton numéro ?',
+            'Je te propose qu’on échange nos numéros pour organiser ça tranquillement.',
+            'Si tu es à l’aise avec ça, on continue par SMS ?']
+  },
+  date: {
+    taquin: ['Je te propose une expérience scientifique : un verre, {jour}, et on mesure si on s’entend aussi bien en vrai.',
+             'Verre {jour} ? Si c’est nul on aura au moins une bonne anecdote.',
+             'Tu m’as convaincu. {jour}, un verre, et tu me diras si je suis conforme à la photo.'],
+    drole: ['Proposition sérieuse : un verre {jour}, durée légale 45 minutes, prolongation possible si tu es drôle.',
+            '{jour}, un bar, deux inconnus, zéro attente. On tente ?',
+            'J’ai un créneau {jour} et un excellent bar. Il ne manque plus qu’une bonne compagnie.'],
+    sincere: ['Ça te dirait qu’on se voie ? Un verre {jour} en début de soirée, sans prise de tête.',
+              'J’aimerais bien te rencontrer pour de vrai. Tu es libre {jour} ?',
+              'On continue autour d’un verre ? {jour} me va bien si ça te convient.'],
+    direct: ['Un verre {jour}, 19h. Tu me dis si ça te va et je réserve.',
+             'On se voit {jour} ? Je propose un bar sympa et tu valides.',
+             'Je te propose {jour} soir. Dis-moi juste oui ou une autre date.'],
+    calme: ['Ça te dit un verre cette semaine ? {jour} soir serait parfait pour moi.',
+            'Je serais content de te rencontrer. Quel soir t’arrange le mieux ?',
+            'On se cale un verre ? Dis-moi tes dispos et je m’adapte.']
+  },
+  sec: {
+    taquin: ['Je sens que je suis en train de perdre l’audience. Je change de sujet : {i}, ton pire souvenir là-dessus ?',
+             'Ok, message reçu. Je repose une vraie question : c’est quoi ton prochain projet un peu fou ?',
+             'Tu es du genre à mieux parler en vrai qu’en texto, je le sens. Confirme.'],
+    drole: ['Tes réponses font trois mots, je vais devoir facturer au caractère.',
+            'Je te propose un deal : une vraie question chacun, et on arrête les « ça va ».',
+            'Si c’est le forfait bloqué, je comprends. Sinon : {i} ou {mi}, tu choisis le sujet.'],
+    sincere: ['J’ai l’impression de te déranger, dis-le moi franchement, ça ne me vexera pas.',
+              'Tu as l’air peu inspirée par l’appli, et je te comprends. Une vraie question : qu’est-ce qui te fait plaisir en ce moment ?',
+              'On repart de zéro : raconte-moi ta journée, la vraie version.'],
+    direct: ['Je préfère demander : tu as envie de discuter ou pas vraiment ?',
+             'Si ça ne t’intéresse pas, aucun souci, dis-le. Sinon on se voit et on arrête d’écrire.',
+             'Réponse courte pour réponse courte : un verre, oui ou non ?'],
+    calme: ['Je te sens peu disponible, on peut reprendre plus tard sans problème.',
+            'Pas de souci si tu es occupée. Je repose une question simple : ton week-end ressemble à quoi ?',
+            'Dis-moi si le moment est mal choisi, je ne le prendrai pas mal.']
+  },
+  apres: {
+    taquin: ['Verdict : tu es encore plus pénible en vrai. J’ai aimé. On refait ça ?',
+             'Bon, je dois t’avouer un truc : j’ai déjà envie de la deuxième manche.',
+             'Rapport d’expérience : soirée validée, sujet à approfondir. Quand est-ce qu’on continue ?'],
+    drole: ['Je rentre, je fais mon débrief officiel : 9/10, aurait pu durer plus longtemps.',
+            'Je suis rentré, j’ai encore la vanne du serveur en tête. On remet ça ?',
+            'Alors ? Moi j’ai passé un très bon moment et je le dis sans négocier.'],
+    sincere: ['J’ai passé un très bon moment ce soir. Merci d’être venue. J’aimerais te revoir.',
+              'Bien rentrée ? J’ai vraiment aimé cette soirée, et j’ai envie d’une deuxième.',
+              'C’était encore mieux que ce que j’imaginais. On se refait ça vite ?'],
+    direct: ['Très bonne soirée. Je veux te revoir. Tu es libre quand ?',
+             'J’ai adoré. On se cale la suite cette semaine ?',
+             'Je ne vais pas jouer au mystérieux : j’ai envie de te revoir vite.'],
+    calme: ['Merci pour cette soirée, j’ai passé un très bon moment. Bien rentrée ?',
+            'C’était agréable et simple, exactement ce que j’espérais. À refaire ?',
+            'J’ai aimé notre soirée. Dis-moi si tu as envie d’une suite.']
+  }
+};
+
+const JOURS = ['jeudi', 'vendredi', 'samedi', 'mardi', 'mercredi'];
+
+function localSuggestions(m, intent, ton, longueur) {
+  const p = S.profile;
+  const her = (m.tags && m.tags.length ? m.tags : splitTags((m.profile || {}).tags)) || [];
+  const lastHer = [...(m.convo || [])].reverse().find(x => x.who === 'elle');
+  const bank = (T[intent] || T.repondre)[ton] || (T[intent] || T.repondre).sincere;
+  const cite = lastHer ? quote(lastHer.text) : '';
+  const fill = s => s
+    .replace(/\{n\}/g, m.name || 'toi')
+    .replace(/\{i\}/g, her[0] || topic((m.profile || {}).bio) || 'ton profil')
+    .replace(/\{mi\}/g, splitTags(p.interets).length ? p.interets[0] : 'plein de trucs')
+    .replace(/\{q\}/g, cite || 'ce que tu viens de dire')
+    .replace(/\{jour\}/g, JOURS[new Date().getDay() % JOURS.length]);
+
+  // "court" = on garde les premières phrases tant qu'on tient sur une ligne
+  const trim = (s, cap) => {
+    const ph = s.split(/(?<=[.?!])\s+/);
+    let out = ph[0];
+    for (let j = 1; j < ph.length && (out + ' ' + ph[j]).length <= cap; j++) out += ' ' + ph[j];
+    return out;
+  };
+  const out = [...bank.keys()].slice(0, 3).map(i => {
+    let t = fill(longueur === 'court' ? trim(bank[i], 95) : bank[i]);
+    if (longueur === 'long') t += ' ' + fill(({
+      ouverture: 'Et si tu veux tout savoir, moi c’est {mi} et un agenda beaucoup trop rempli.',
+      relancer: 'Sinon je te souhaite quand même une bonne semaine, sincèrement.',
+      repondre: 'De mon côté c’est {mi} qui occupe mes soirées en ce moment.',
+      rire: 'Réponse honnête attendue, je note tout.',
+      flirt: 'Voilà, c’est dit, tu fais ce que tu veux de cette information.',
+      numero: 'Et si tu préfères rester ici encore un peu, ça me va aussi.',
+      date: 'Si {jour} ne va pas, propose-moi autre chose, je suis flexible.',
+      sec: 'Aucune pression, vraiment.',
+      apres: 'Et la prochaine fois, c’est moi qui choisis l’endroit.'
+    })[intent] || '');
+    if (p.emoji === 'souvent') t += ' ' + ['\u{1F609}', '\u{1F604}', '\u{1F44C}'][i % 3];
+    else if (p.emoji === 'peu' && i === 1) t += ' \u{1F609}';
+    return {
+      texte: t,
+      pourquoi: ['Message court, une seule idée, facile à relancer pour elle.',
+                 'Pose une question ouverte : elle a quelque chose à quoi répondre.',
+                 'Assume une intention claire sans mettre de pression.'][i % 3],
+      risque: intent === 'flirt' || intent === 'numero' || intent === 'date'
+        ? 'Un peu direct : à envoyer seulement si la conversation est déjà chaleureuse.'
+        : 'Assez neutre, peu de risque de la braquer.'
+    };
+  });
+  return { analyse: localAnalysis(m), propositions: out };
+}
+
+const STOP = new Set(('le la les un une des de du au aux et ou mais donc je tu il elle on nous vous ils elles me te se ne pas plus moins que qui quoi dont pour avec sans chez sur sous dans par est sont suis etais etait ete etre avoir ai as ont avait mon ma mes ton ta tes son sa ses ce cet cette ces cest jai tes ily y en si oui non trop tres bien tout tous toute toutes jour jours fois peu deja encore aussi comme quand parce alors juste vraiment bonjour salut coucou hey ca va merci lol mdr ptdr haha faire fait fais dire dis vais vas plutot').split(' '));
+// mot-sujet le plus porteur d'un message (pour « parle-moi de … »)
+function topic(txt) {
+  const raw = String(txt || '').split(/[^A-Za-zÀ-ÿ0-9'’]+/).filter(Boolean);
+  for (const w of raw) {
+    const n = norm(w.replace(/^[a-z]['’]/i, ''));
+    if (n.length > 3 && !STOP.has(n)) return w.toLowerCase().replace(/^[a-z]['’]/i, '');
+  }
+  return '';
+}
+// citation courte et propre de son message (pour « tu viens de dire … »)
+function quote(txt) {
+  let t = String(txt || '').replace(/\s+/g, ' ').trim();
+  t = t.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').trim();
+  if (t.length > 58) t = t.slice(0, 55).replace(/\s+\S*$/, '') + '…';
+  return t.replace(/[.!,;:]+$/, '');
+}
+
+function localAnalysis(m) {
+  const c = m.convo || [];
+  if (!c.length) return 'Aucun message enregistré : commence par une accroche qui parle de son profil, pas de son physique.';
+  const last = c[c.length - 1];
+  const her = c.filter(x => x.who === 'elle'), me = c.filter(x => x.who === 'moi');
+  const avgHer = her.length ? Math.round(her.reduce((a, x) => a + x.text.length, 0) / her.length) : 0;
+  const avgMe = me.length ? Math.round(me.reduce((a, x) => a + x.text.length, 0) / me.length) : 0;
+  const out = [];
+  out.push(last.who === 'elle' ? 'C’est à toi de répondre.' : 'Tu as envoyé le dernier message : laisse-lui la main, ou relance après 2-3 jours.');
+  if (avgHer && avgMe > avgHer * 2) out.push('Tu écris nettement plus long qu’elle (' + avgMe + ' vs ' + avgHer + ' caractères) : raccourcis pour rééquilibrer.');
+  if (avgHer && avgHer < 25) out.push('Ses réponses sont très courtes : change de registre ou propose directement un verre.');
+  if (her.length && !her.some(x => x.text.includes('?'))) out.push('Elle ne pose aucune question : ne porte pas la conversation tout seul trop longtemps.');
+  if (c.length >= 12 && m.status === 'conversation') out.push('Plus de 12 messages échangés : il est temps de proposer un date, sinon la conversation va s’éteindre.');
+  if (last.ts && Date.now() - last.ts > 4 * DAY) out.push('Dernier échange ' + ago(last.ts) + ' : une relance légère, une seule fois.');
+  return out.join(' ');
+}
+
+/* ============================ APPEL CLAUDE ============================ */
+const hasKey = () => !!(S.settings.key || '').trim();
+function refreshAIState() {
+  const el = $('#aistate');
+  el.textContent = hasKey() ? 'IA activée' : 'mode local';
+  el.classList.toggle('on', hasKey());
+}
+
+const SUGG_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  required: ['analyse', 'propositions'],
+  properties: {
+    analyse: { type: 'string', description: 'Lecture courte de la conversation : où elle en est, ce qui bloque, ce qu\'il faut viser.' },
+    propositions: {
+      type: 'array', minItems: 3, maxItems: 3,
+      items: {
+        type: 'object', additionalProperties: false,
+        required: ['texte', 'pourquoi', 'risque'],
+        properties: {
+          texte: { type: 'string', description: 'Le message prêt à envoyer, en français, sans guillemets autour.' },
+          pourquoi: { type: 'string', description: 'Une phrase : pourquoi ce message peut marcher.' },
+          risque: { type: 'string', description: 'Une phrase : le risque ou la condition pour l\'envoyer.' }
+        }
+      }
+    }
+  }
+};
+
+const SCAN_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  required: ['tags', 'red_flags', 'lecture', 'accroches'],
+  properties: {
+    tags: { type: 'array', items: { type: 'string' }, description: 'Centres d\'intérêt et traits déduits de la bio.' },
+    red_flags: { type: 'array', items: { type: 'string' }, description: 'Signaux d\'alerte objectifs présents dans la bio, sinon liste vide.' },
+    lecture: { type: 'string', description: 'Deux ou trois phrases : ce que la bio dit d\'elle et ce qu\'elle semble chercher.' },
+    accroches: { type: 'array', minItems: 3, maxItems: 3, items: { type: 'string' }, description: 'Trois premiers messages possibles, courts, qui rebondissent sur un détail précis de sa bio.' }
+  }
+};
+
+const SYSTEM_BASE = `Tu es le "wingman" d'un utilisateur qui utilise Tinder. Tu l'aides à écrire ses propres messages et à choisir qui liker.
+
+Règles de fond :
+- Écris en français naturel, comme un vrai mec de son âge écrit sur une appli : phrases courtes, pas de vocabulaire pompeux, pas de tournures d'IA ("En tant que", "N'hésite pas à", "Je suis ravi de").
+- Zéro manipulation : pas de negging, pas de fausse urgence, pas de mensonge sur qui il est, pas de technique de pression. Si une intention demandée pousse à insister alors qu'elle n'est visiblement pas intéressée, dis-le dans l'analyse et propose la version respectueuse (proposer clairement, puis lâcher).
+- Respecte son style et ses interdits tels qu'il les décrit. Colle à sa voix plutôt qu'à un style générique.
+- Un message = une idée + une porte ouverte pour elle. Pas de pavé, pas de trois questions à la fois.
+- Interdit : commenter son corps en ouverture, l'appeler "belle/princesse/ma jolie", copier sa bio mot pour mot, les compliments creux.
+- Si elle a clairement dit non, ne cherche pas de contournement : propose de la remercier et de passer à autre chose.
+- Les trois propositions doivent être vraiment différentes (angle, longueur, niveau d'audace), pas trois variantes de la même phrase.`;
+
+async function claudeJSON({ system, user, schema, maxTokens = 16000 }) {
+  const key = (S.settings.key || '').trim();
+  if (!key) throw new Error('NO_KEY');
+  const model = S.settings.model || 'claude-opus-5';
+  const caps = MODELS.find(m => m[0] === model) || MODELS[0];
+  const body = {
+    model,
+    max_tokens: maxTokens,
+    system,
+    messages: [{ role: 'user', content: user }],
+    output_config: { format: { type: 'json_schema', schema } }
+  };
+  if (caps[2]) body.output_config.effort = S.settings.effort || 'medium';
+
+  let res;
+  try {
+    res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify(body)
+    });
+  } catch (e) {
+    throw new Error('Impossible de joindre l’API (connexion ou navigateur qui bloque la requête).');
+  }
+  if (!res.ok) {
+    let detail = '';
+    try { const j = await res.json(); detail = (j.error && j.error.message) || ''; } catch (e) {}
+    const map = {
+      401: 'Clé API refusée : vérifie-la dans Réglages.',
+      403: 'Accès refusé pour cette clé.',
+      429: 'Trop de requêtes ou crédit épuisé, réessaie dans un moment.',
+      529: 'L’API est surchargée, réessaie dans un instant.'
+    };
+    throw new Error((map[res.status] || ('Erreur API ' + res.status)) + (detail ? ' — ' + detail : ''));
+  }
+  const data = await res.json();
+  if (data.stop_reason === 'refusal') throw new Error('Le modèle a refusé de répondre à cette demande.');
+  const txt = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+  try { return JSON.parse(txt); }
+  catch (e) { throw new Error('Réponse illisible du modèle.'); }
+}
+
+function styleBlock() {
+  const p = S.profile;
+  return `SON STYLE À LUI :
+- ton par défaut : ${p.ton}
+- longueur : ${p.longueur}
+- emojis : ${p.emoji}
+- sur lui : ${p.moi || 'non précisé'}
+- exemples de ses vrais messages : ${p.voix || 'aucun fourni'}
+- à éviter absolument : ${p.evite || 'rien de précisé'}
+- ce qu'il recherche : ${(p.interets || []).join(', ') || 'non précisé'}
+- ses red flags : ${(p.redflags || []).join(', ') || 'non précisés'}`;
+}
+
+async function aiSuggestions(m, intent, ton, longueur, extra) {
+  const pr = m.profile || {};
+  const convo = (m.convo || []).map(x => (x.who === 'elle' ? 'ELLE : ' : 'LUI : ') + x.text).join('\n') || '(aucun message échangé)';
+  const user = `${styleBlock()}
+
+ELLE :
+- prénom : ${m.name || '?'}
+- âge : ${pr.age || '?'} — distance : ${pr.dist || '?'} km
+- bio : ${pr.bio || '(vide)'}
+- centres d'intérêt repérés : ${(m.tags || []).join(', ') || '?'}
+- score de compatibilité calculé avec ses critères : ${m.score || '?'}/100
+- statut : ${(STATUSES.find(s => s[0] === m.status) || [, m.status])[1]}
+- ses notes perso sur elle : ${m.notes || '(aucune)'}
+
+CONVERSATION (la plus récente en bas) :
+${convo}
+
+CE QU'IL VEUT FAIRE MAINTENANT : ${(INTENTS.find(i => i[0] === intent) || [, intent])[1]}
+TON DEMANDÉ POUR CE MESSAGE : ${ton}
+LONGUEUR DEMANDÉE : ${longueur}
+${extra ? 'CONTEXTE EN PLUS DONNÉ PAR LUI : ' + extra : ''}
+
+Donne ta lecture de la conversation, puis 3 messages prêts à envoyer.`;
+  return claudeJSON({ system: SYSTEM_BASE, user, schema: SUGG_SCHEMA });
+}
+
+/* ============================ VUE : MES GOÛTS ============================ */
+function renderGouts() {
+  const p = S.profile;
+  $('#p-ageIdeal').value = p.ageIdeal; $('#p-ageMin').value = p.ageMin; $('#p-ageMax').value = p.ageMax;
+  $('#p-distMax').value = p.distMax; $('#p-hMin').value = p.hMin; $('#p-hMax').value = p.hMax;
+  $('#weights').innerHTML = CRITERIA.map(([k, l]) =>
+    `<div class="field"><label>${l} — <b style="color:var(--acc)" id="wv-${k}">${p.weights[k]}</b></label>
+     <input type="range" min="0" max="5" step="1" value="${p.weights[k]}" data-w="${k}"></div>`).join('');
+  $('#p-ton').innerHTML = TONES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  $('#p-ton').value = p.ton; $('#p-long').value = p.longueur; $('#p-emoji').value = p.emoji;
+  $('#p-voix').value = p.voix; $('#p-evite').value = p.evite; $('#p-moi').value = p.moi;
+  drawTags();
+}
+function drawTags() {
+  const f = (list, key) => list.length
+    ? list.map((t, i) => `<span class="tag ${key === 'redflags' ? 'red' : 'hit'}">${esc(t)}<button data-del="${key}" data-i="${i}" title="Retirer">×</button></span>`).join('')
+    : '<span class="hint">Rien pour l’instant.</span>';
+  $('#int-tags').innerHTML = f(S.profile.interets, 'interets');
+  $('#rf-tags').innerHTML = f(S.profile.redflags, 'redflags');
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-del]');
+  if (!b) return;
+  S.profile[b.dataset.del].splice(+b.dataset.i, 1); save(); drawTags(); renderScanRF();
+});
+document.addEventListener('input', e => {
+  const r = e.target.closest('[data-w]');
+  if (!r) return;
+  S.profile.weights[r.dataset.w] = +r.value;
+  $('#wv-' + r.dataset.w).textContent = r.value;
+});
+function addTags(inputSel, key) {
+  const el = $(inputSel), vals = splitTags(el.value);
+  if (!vals.length) return;
+  vals.forEach(v => { if (!S.profile[key].some(x => norm(x) === norm(v))) S.profile[key].push(v); });
+  el.value = ''; save(); drawTags(); renderScanRF();
+}
+$('#int-add').onclick = () => addTags('#int-in', 'interets');
+$('#rf-add').onclick = () => addTags('#rf-in', 'redflags');
+$('#int-in').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); addTags('#int-in', 'interets'); } };
+$('#rf-in').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); addTags('#rf-in', 'redflags'); } };
+$('#p-save').onclick = () => {
+  const p = S.profile, n = (id, d) => { const v = +$('#p-' + id).value; return isNaN(v) || !v ? d : v; };
+  p.ageIdeal = n('ageIdeal', 27); p.ageMin = n('ageMin', 22); p.ageMax = n('ageMax', 34);
+  if (p.ageMin > p.ageMax) { const t = p.ageMin; p.ageMin = p.ageMax; p.ageMax = t; }
+  p.ageIdeal = clamp(p.ageIdeal, p.ageMin, p.ageMax);
+  p.distMax = n('distMax', 30); p.hMin = n('hMin', 155); p.hMax = n('hMax', 180);
+  p.ton = $('#p-ton').value; p.longueur = $('#p-long').value; p.emoji = $('#p-emoji').value;
+  p.voix = $('#p-voix').value.trim(); p.evite = $('#p-evite').value.trim(); p.moi = $('#p-moi').value.trim();
+  save(); renderGouts(); toast('Goûts enregistrés');
+};
+
+/* ============================ VUE : SCANNER ============================ */
+let scanRF = [];
+function renderScanRF() {
+  const list = S.profile.redflags;
+  $('#s-rf').innerHTML = list.length
+    ? list.map((t, i) => `<label class="tag ${scanRF.includes(t) ? 'red' : ''}" style="cursor:pointer">
+        <input type="checkbox" data-rf="${esc(t)}" ${scanRF.includes(t) ? 'checked' : ''} style="width:14px;height:14px;accent-color:var(--acc)"> ${esc(t)}</label>`).join('')
+    : '<span class="hint">Ajoute tes red flags dans « Mes goûts ».</span>';
+}
+$('#s-rf').addEventListener('change', e => {
+  const c = e.target.closest('[data-rf]'); if (!c) return;
+  const v = c.dataset.rf;
+  scanRF = c.checked ? [...new Set([...scanRF, v])] : scanRF.filter(x => x !== v);
+  renderScanRF();
+});
+[['s-photo', 'l-photo'], ['s-bioq', 'l-bio'], ['s-vibe', 'l-vibe']].forEach(([r, l]) =>
+  $('#' + r).addEventListener('input', () => $('#' + l).textContent = $('#' + r).value));
+
+function scanData() {
+  return {
+    name: $('#s-name').value.trim(), age: $('#s-age').value, dist: $('#s-dist').value,
+    height: $('#s-height').value, bio: $('#s-bio').value.trim(), tags: $('#s-tags').value.trim(),
+    photo: $('#s-photo').value, bioq: $('#s-bioq').value, vibe: $('#s-vibe').value, redflags: scanRF
+  };
+}
+$('#s-go').onclick = () => {
+  const c = scanData();
+  if (!c.name) return toast('Mets au moins un prénom');
+  const r = scoreOf(c);
+  $('#s-out').innerHTML = scoreCardHTML(r, c) + `<div class="card">
+      <h2 style="margin-top:0">Et maintenant</h2>
+      <p class="sub" style="margin-bottom:12px">Enregistre-la pour suivre la conversation et générer tes réponses.</p>
+      <div class="row"><button class="btn acc" id="s-save">Ajouter à mes matchs</button>
+      <button class="btn ghost" id="s-open">Ajouter et ouvrir sa fiche</button></div></div>`;
+  $('#s-save').onclick = () => saveScan(c, r, false);
+  $('#s-open').onclick = () => saveScan(c, r, true);
+};
+function saveScan(c, r, open) {
+  const m = {
+    id: uid(), name: c.name, score: r.score, verdict: r.verdict, vclass: r.vclass,
+    tags: splitTags(c.tags), status: 'nouveau', notes: '', convo: [],
+    createdAt: Date.now(), lastActivity: Date.now(), profile: c
+  };
+  S.matches.unshift(m); save(); toast(c.name + ' ajoutée à tes matchs');
+  $('#s-name').value = ''; $('#s-age').value = ''; $('#s-dist').value = ''; $('#s-height').value = '';
+  $('#s-bio').value = ''; $('#s-tags').value = ''; scanRF = []; renderScanRF(); $('#s-out').innerHTML = '';
+  if (open) { nav('matchs'); openMatch(m.id); } else renderHome();
+}
+$('#s-reset').onclick = () => {
+  ['s-name', 's-age', 's-dist', 's-height', 's-bio', 's-tags'].forEach(i => $('#' + i).value = '');
+  scanRF = []; renderScanRF(); $('#s-out').innerHTML = '';
+};
+$('#s-ai').onclick = async () => {
+  const bio = $('#s-bio').value.trim();
+  if (!bio) return toast('Colle d’abord sa bio');
+  if (!hasKey()) return toast('Ajoute ta clé API dans Réglages pour ça');
+  const btn = $('#s-ai'); btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Analyse…';
+  try {
+    const r = await claudeJSON({
+      system: SYSTEM_BASE,
+      user: `${styleBlock()}\n\nBIO DE LA FILLE :\n"""${bio}"""\nPrénom : ${$('#s-name').value.trim() || '?'} — âge : ${$('#s-age').value || '?'}\n\nDéduis ses centres d'intérêt, les éventuels red flags objectifs, une lecture honnête de sa bio, et trois accroches possibles.`,
+      schema: SCAN_SCHEMA, maxTokens: 8000
+    });
+    const cur = splitTags($('#s-tags').value);
+    $('#s-tags').value = [...new Set([...cur, ...(r.tags || [])])].join(', ');
+    $('#s-out').innerHTML = `<div class="card"><h2 style="margin-top:0">Lecture de sa bio</h2>
+      <p style="font-size:15px">${esc(r.lecture)}</p>
+      ${(r.red_flags || []).length ? `<div class="warn" style="margin-top:12px"><b>Points d’attention :</b> ${esc(r.red_flags.join(' · '))}</div>` : ''}
+      <h2>Accroches possibles</h2>
+      ${(r.accroches || []).map(a => `<div class="sugg"><p>${esc(a)}</p><div class="act"><button class="btn sm ghost" data-copy="${esc(a)}">Copier</button></div></div>`).join('')}
+      </div>` + $('#s-out').innerHTML;
+  } catch (e) { $('#s-out').innerHTML = `<div class="err">${esc(e.message)}</div>` + $('#s-out').innerHTML; }
+  btn.disabled = false; btn.textContent = 'Analyser sa bio avec l’IA';
+};
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-copy]');
+  if (!b) return;
+  navigator.clipboard.writeText(b.dataset.copy).then(() => toast('Copié'), () => toast('Copie impossible'));
+});
+
+/* ============================ VUE : MATCHS ============================ */
+const statusLabel = s => (STATUSES.find(x => x[0] === s) || [, s])[1];
+const needsReply = m => { const c = m.convo || []; return c.length && c[c.length - 1].who === 'elle'; };
+const isStale = m => ['nouveau', 'conversation', 'numero'].includes(m.status) && Date.now() - (m.lastActivity || 0) > 3 * DAY;
+
+function matchRow(m) {
+  const initial = (m.name || '?').trim().charAt(0).toUpperCase();
+  return `<button class="m" data-open="${m.id}">
+    <span class="av">${esc(initial)}</span>
+    <span><span class="nm">${esc(m.name)}${(m.profile && m.profile.age) ? ', ' + esc(m.profile.age) : ''}
+      ${needsReply(m) ? '<span class="badge b-you">à toi</span>' : ''}
+      ${isStale(m) ? '<span class="badge b-old">relance</span>' : ''}</span>
+      <span class="meta">${esc(statusLabel(m.status))} · ${(m.convo || []).length} messages · ${ago(m.lastActivity)}</span></span>
+    <span class="sc"><b>${m.score}</b><br><span class="meta" style="font-size:11px">/100</span></span>
+  </button>`;
+}
+function renderMatches() {
+  $('#m-list').style.display = ''; $('#m-detail').style.display = 'none';
+  $('#m-filter').innerHTML = '<option value="">Tous les statuts</option>' + STATUSES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  const q = norm($('#m-search').value), f = $('#m-filter').dataset.v || '', sort = $('#m-sort').value;
+  $('#m-filter').value = f;
+  let list = S.matches.filter(m => (!q || norm(m.name).includes(q)) && (!f || m.status === f));
+  list.sort((a, b) => sort === 'score' ? b.score - a.score : sort === 'name' ? a.name.localeCompare(b.name) : (b.lastActivity || 0) - (a.lastActivity || 0));
+  $('#m-items').innerHTML = list.length ? list.map(matchRow).join('')
+    : `<div class="empty">${S.matches.length ? 'Aucun match ne correspond à ce filtre.' : 'Pas encore de match enregistré.<br>Passe par <b>Scanner un profil</b> pour en ajouter une.'}</div>`;
+}
+$('#m-search').oninput = renderMatches;
+$('#m-sort').onchange = renderMatches;
+$('#m-filter').onchange = e => { $('#m-filter').dataset.v = e.target.value; renderMatches(); };
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-open]');
+  if (b) { nav('matchs'); openMatch(b.dataset.open); }
+});
+
+let cur = null;
+function openMatch(id) {
+  const m = S.matches.find(x => x.id === id);
+  if (!m) return;
+  cur = m;
+  $('#m-list').style.display = 'none';
+  const d = $('#m-detail'); d.style.display = '';
+  const pr = m.profile || {};
+  d.innerHTML = `
+  <a href="#" class="back" id="m-back">← Tous mes matchs</a>
+  <h1>${esc(m.name)}${pr.age ? ' <em>· ' + esc(pr.age) + ' ans</em>' : ''}</h1>
+  <div class="row" style="margin-bottom:16px">
+    <span class="verdict ${m.vclass || 'v-mid'}">${m.score}/100 — ${esc(m.verdict || '')}</span>
+    <div class="spacer"></div>
+    <select id="m-status" style="width:auto">${STATUSES.map(([v, l]) => `<option value="${v}" ${m.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+  </div>
+
+  <div class="grid g2">
+    <div>
+      <div class="card">
+        <h2 style="margin-top:0">La conversation</h2>
+        <div class="convo" id="m-convo"></div>
+        <hr>
+        <div class="field" style="margin-bottom:8px"><textarea id="m-msg" placeholder="Colle un message ici…" style="min-height:70px"></textarea></div>
+        <div class="row"><button class="btn sm ghost" id="add-elle">+ message d’elle</button>
+          <button class="btn sm ghost" id="add-moi">+ mon message</button>
+          <div class="spacer"></div><button class="btn sm ghost" id="m-clear" style="color:var(--acc)">Vider</button></div>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0">Sa fiche</h2>
+        <p class="hint" style="margin-bottom:8px">${pr.dist ? esc(pr.dist) + ' km · ' : ''}${pr.height ? esc(pr.height) + ' cm · ' : ''}ajoutée ${ago(m.createdAt)}</p>
+        ${pr.bio ? `<p style="font-size:14.5px;white-space:pre-wrap;color:var(--mut)">${esc(pr.bio)}</p>` : ''}
+        <div class="tags">${(m.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join('') || '<span class="hint">aucun tag</span>'}</div>
+        <div class="field" style="margin-top:14px"><label>Mes notes</label>
+          <textarea id="m-notes" placeholder="Ce qu’elle m’a dit, ce qu’elle aime, ce qu’il ne faut pas oublier…" style="min-height:70px">${esc(m.notes || '')}</textarea></div>
+        <div class="row"><button class="btn sm ghost" id="m-savenotes">Enregistrer les notes</button>
+          <div class="spacer"></div><button class="btn sm ghost" id="m-del" style="color:var(--acc)">Supprimer ce match</button></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2 style="margin-top:0">Écrire ma réponse</h2>
+        <div class="grid g2">
+          <div class="field"><label>Objectif</label><select id="g-intent">${INTENTS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></div>
+          <div class="field"><label>Ton</label><select id="g-ton">${TONES.map(([v, l]) => `<option value="${v}" ${S.profile.ton === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+        </div>
+        <div class="grid g2">
+          <div class="field"><label>Longueur</label><select id="g-long">
+            <option value="court" ${S.profile.longueur === 'court' ? 'selected' : ''}>Court</option>
+            <option value="moyen" ${S.profile.longueur === 'moyen' ? 'selected' : ''}>Moyen</option>
+            <option value="long" ${S.profile.longueur === 'long' ? 'selected' : ''}>Long</option></select></div>
+          <div class="field"><label>Contexte en plus</label><input type="text" id="g-extra" placeholder="ex. elle part en voyage jeudi"></div>
+        </div>
+        <div class="row"><button class="btn acc" id="g-go">${hasKey() ? 'Générer 3 réponses' : 'Générer (mode local)'}</button>
+          ${hasKey() ? '<button class="btn ghost sm" id="g-local">Version locale</button>' : ''}</div>
+        <div id="g-out" style="margin-top:16px"></div>
+      </div>
+    </div>
+  </div>`;
+
+  drawConvo();
+  $('#m-back').onclick = e => { e.preventDefault(); cur = null; renderMatches(); };
+  $('#m-status').onchange = e => { m.status = e.target.value; m.lastActivity = Date.now(); save(); toast('Statut mis à jour'); };
+  $('#m-savenotes').onclick = () => { m.notes = $('#m-notes').value; save(); toast('Notes enregistrées'); };
+  $('#m-del').onclick = () => {
+    if (!confirm('Supprimer ' + m.name + ' et toute la conversation ?')) return;
+    S.matches = S.matches.filter(x => x.id !== m.id); save(); cur = null; renderMatches(); toast('Supprimée');
+  };
+  $('#add-elle').onclick = () => addMsg('elle');
+  $('#add-moi').onclick = () => addMsg('moi');
+  $('#m-clear').onclick = () => { if (confirm('Effacer toute la conversation ?')) { m.convo = []; save(); drawConvo(); } };
+  $('#g-go').onclick = () => generate(hasKey());
+  const gl = $('#g-local'); if (gl) gl.onclick = () => generate(false);
+  const c = m.convo || [];
+  $('#g-intent').value = !c.length ? 'ouverture' : needsReply(m) ? 'repondre' : 'relancer';
+}
+function drawConvo() {
+  const m = cur, el = $('#m-convo');
+  if (!m || !el) return;
+  el.innerHTML = (m.convo || []).length
+    ? m.convo.map((x, i) => `<div class="msg ${x.who}">${esc(x.text)}<button data-rm="${i}" title="Supprimer">×</button></div>`).join('')
+    : '<p class="hint">Colle vos messages ci-dessous pour que les suggestions collent à la conversation.</p>';
+  el.scrollTop = el.scrollHeight;
+  el.onclick = e => {
+    const b = e.target.closest('[data-rm]'); if (!b) return;
+    m.convo.splice(+b.dataset.rm, 1); save(); drawConvo();
+  };
+}
+function addMsg(who) {
+  const t = $('#m-msg').value.trim();
+  if (!t) return toast('Écris ou colle un message d’abord');
+  cur.convo = cur.convo || [];
+  cur.convo.push({ who, text: t, ts: Date.now() });
+  cur.lastActivity = Date.now();
+  if (cur.status === 'nouveau' && cur.convo.length > 1) cur.status = 'conversation';
+  save(); $('#m-msg').value = ''; drawConvo();
+  const st = $('#m-status'); if (st) st.value = cur.status;
+}
+async function generate(useAI) {
+  const m = cur, out = $('#g-out');
+  const intent = $('#g-intent').value, ton = $('#g-ton').value, long = $('#g-long').value, extra = $('#g-extra').value.trim();
+  out.innerHTML = useAI ? '<p class="hint"><span class="spin"></span> Claude écrit tes options…</p>' : '';
+  let r;
+  if (useAI) {
+    try { r = await aiSuggestions(m, intent, ton, long, extra); }
+    catch (e) {
+      out.innerHTML = `<div class="err">${esc(e.message === 'NO_KEY' ? 'Aucune clé API : passage en mode local.' : e.message)}</div>`;
+      r = localSuggestions(m, intent, ton, long);
+      out.innerHTML += '<p class="hint" style="margin:10px 0">Suggestions locales à la place :</p>';
+    }
+  } else r = localSuggestions(m, intent, ton, long);
+  out.innerHTML += `<div class="card" style="background:var(--s2);margin-bottom:12px"><p style="font-size:14px;color:var(--mut)"><b style="color:var(--ink)">Lecture :</b> ${esc(r.analyse || '')}</p></div>`
+    + (r.propositions || []).map(p => `<div class="sugg"><p>${esc(p.texte)}</p>
+        <div class="why"><b>Pourquoi :</b> ${esc(p.pourquoi)}<br><b>Attention :</b> ${esc(p.risque)}</div>
+        <div class="act"><button class="btn sm ghost" data-copy="${esc(p.texte)}">Copier</button>
+        <button class="btn sm ghost" data-send="${esc(p.texte)}">Copier et marquer comme envoyé</button></div></div>`).join('');
+  out.querySelectorAll('[data-send]').forEach(b => b.onclick = () => {
+    navigator.clipboard.writeText(b.dataset.send).catch(() => {});
+    cur.convo = cur.convo || [];
+    cur.convo.push({ who: 'moi', text: b.dataset.send, ts: Date.now() });
+    cur.lastActivity = Date.now();
+    if (cur.status === 'nouveau') cur.status = 'conversation';
+    save(); drawConvo(); toast('Copié et ajouté à la conversation');
+  });
+}
+
+/* ============================ VUE : ACCUEIL ============================ */
+function renderHome() {
+  const ms = S.matches;
+  const stats = [
+    [ms.length, 'matchs suivis'],
+    [ms.filter(needsReply).length, 'à répondre'],
+    [ms.filter(isStale).length, 'à relancer'],
+    [ms.filter(m => ['date_prevu', 'date_fait'].includes(m.status)).length, 'dates']
+  ];
+  $('#stats').innerHTML = stats.map(([n, l]) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('');
+  const todo = ms.filter(m => needsReply(m) || isStale(m)).sort((a, b) => (a.lastActivity || 0) - (b.lastActivity || 0));
+  $('#todo').innerHTML = todo.length ? todo.map(matchRow).join('')
+    : `<div class="empty">Rien à traiter. ${ms.length ? 'Tu es à jour.' : 'Commence par scanner un profil.'}</div>`;
+  const recent = [...ms].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5);
+  $('#recent').innerHTML = recent.length ? recent.map(matchRow).join('') : '<div class="empty">Aucun match enregistré.</div>';
+}
+
+/* ============================ VUE : RÉGLAGES ============================ */
+function renderSettings() {
+  $('#k-model').innerHTML = MODELS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  $('#k-key').value = S.settings.key || '';
+  $('#k-model').value = S.settings.model;
+  $('#k-effort').value = S.settings.effort;
+}
+$('#k-save').onclick = () => {
+  S.settings.key = $('#k-key').value.trim();
+  S.settings.model = $('#k-model').value;
+  S.settings.effort = $('#k-effort').value;
+  save(); refreshAIState(); toast(hasKey() ? 'Aide IA activée' : 'Clé retirée — mode local');
+};
+$('#k-test').onclick = async () => {
+  S.settings.key = $('#k-key').value.trim(); S.settings.model = $('#k-model').value; save(); refreshAIState();
+  const o = $('#k-out'); o.innerHTML = '<p class="hint"><span class="spin"></span> Test en cours…</p>';
+  try {
+    const r = await claudeJSON({
+      system: 'Tu réponds uniquement en JSON valide.',
+      user: 'Réponds exactement {"analyse":"ok","propositions":[]} pour valider la connexion.',
+      schema: { type: 'object', additionalProperties: false, required: ['analyse'], properties: { analyse: { type: 'string' } } },
+      maxTokens: 1000
+    });
+    o.innerHTML = '<div class="warn" style="background:#1baf7a18;border-color:#1baf7a55;color:#7fe0bb">Connexion OK — l’aide IA est prête.</div>';
+  } catch (e) {
+    o.innerHTML = `<div class="err">${esc(e.message === 'NO_KEY' ? 'Aucune clé saisie.' : e.message)}</div>`;
+  }
+};
+$('#d-export').onclick = () => {
+  const blob = new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'wingman-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.click(); URL.revokeObjectURL(a.href); toast('Export téléchargé');
+};
+$('#d-import').onclick = () => $('#d-file').click();
+$('#d-file').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const d = JSON.parse(r.result);
+      if (!d || typeof d !== 'object') throw 0;
+      if (!confirm('Remplacer toutes tes données actuelles par ce fichier ?')) return;
+      localStorage.setItem(KEY, JSON.stringify(d));
+      S = load(); save(); boot(); toast('Import terminé');
+    } catch (err) { toast('Fichier illisible'); }
+  };
+  r.readAsText(f); e.target.value = '';
+};
+$('#d-wipe').onclick = () => {
+  if (!confirm('Effacer définitivement tous tes matchs, tes goûts et ta clé ?')) return;
+  localStorage.removeItem(KEY); S = DEFAULTS(); save(); boot(); toast('Tout a été effacé');
+};
+$('#d-demo').onclick = () => {
+  if (S.matches.length && !confirm('Ajouter deux profils d’exemple à tes matchs ?')) return;
+  const mk = (name, age, dist, bio, tags, photo, vibe, convo, status) => {
+    const c = { name, age, dist, height: '', bio, tags: tags.join(', '), photo, bioq: 4, vibe, redflags: [] };
+    const r = scoreOf(c);
+    return { id: uid(), name, score: r.score, verdict: r.verdict, vclass: r.vclass, tags, status, notes: '', convo, createdAt: Date.now() - 3 * DAY, lastActivity: Date.now() - (convo.length ? DAY : 4 * DAY), profile: c };
+  };
+  S.matches.unshift(
+    mk('Léa', 26, 8, 'Rando le week-end, mauvaise en cuisine, bonne en mauvaise foi.', ['rando', 'voyage', 'cuisine'], 4, 4,
+      [{ who: 'moi', text: 'Bon, mauvaise foi c’est un art ou un accident chez toi ?', ts: Date.now() - 2 * DAY },
+       { who: 'elle', text: 'Un art. Je m’entraîne tous les jours 😌', ts: Date.now() - DAY }], 'conversation'),
+    mk('Sarah', 29, 22, 'Photographe. Trop de plantes, pas assez de temps.', ['photo', 'plantes'], 4, 3, [], 'nouveau')
+  );
+  save(); boot(); nav('matchs'); toast('Exemples ajoutés');
+};
+
+/* ============================ BOOT ============================ */
+function boot() {
+  renderGouts(); renderScanRF(); renderSettings(); renderHome(); renderMatches(); refreshAIState();
+}
+boot();
+nav(VIEWS.some(v => v[0] === location.hash.slice(1)) ? location.hash.slice(1) : 'home');
+</script>
+</body></html>
