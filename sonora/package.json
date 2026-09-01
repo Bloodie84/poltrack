@@ -9,7 +9,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test:sql": "supabase/tests/run.sh",
-    "test:e2e": "test/e2e/run.sh"
+    "test:e2e": "test/e2e/run.sh",
+    "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.5",

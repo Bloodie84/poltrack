@@ -75,8 +75,15 @@ test('renaming yourself never breaks a link that is already out there', async ({
   await expect(page.getByText('Recorded at home.')).toBeVisible();
 });
 
-test('an unknown artist page is a 404, not a blank one', async ({ page }) => {
+test('a dead link answers 404, not a soft 200', async ({ page }) => {
+  // It matters for a product built on sharing links: crawlers and the preview
+  // bots behind messaging apps read the status, not the words on the page.
+  expect((await page.request.get('/u/nobody-000000000000')).status()).toBe(404);
+  expect((await page.request.get('/track/gone-000000000000')).status()).toBe(404);
+
   await page.goto('/u/nobody-000000000000');
+  await expect(page.getByText('Nothing here')).toBeVisible();
+  await page.goto('/track/gone-000000000000');
   await expect(page.getByText('Nothing here')).toBeVisible();
 });
 

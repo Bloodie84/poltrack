@@ -171,7 +171,17 @@ file. It is short-lived and only issued after a permission check, but any
 browser that can play a file can also save the bytes it received. The downloads
 switch controls the download *feature* — it is not DRM, and no web player is.
 
-## Running it
+## Putting it online
+
+**[DEPLOY.md](DEPLOY.md)** is the step-by-step: Supabase project, migrations,
+the anonymous-upload decision, Vercel with **root directory `sonora`**, the
+five environment variables, the redirect URL, and a smoke test to confirm it.
+
+```bash
+npm run smoke -- https://your-domain.com
+```
+
+## Running it locally
 
 1. Create a Supabase project.
 2. Apply the migration — `supabase db push`, or paste
