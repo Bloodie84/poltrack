@@ -19,13 +19,19 @@ Wait for the project to finish provisioning.
 
 ## 2. Create the schema
 
-Supabase dashboard → **SQL Editor** → **New query**. Paste the contents of each
-file in `supabase/migrations/`, **in filename order**, and run them one at a
-time:
+Supabase dashboard → **SQL Editor** → **New query**, paste, **Run**.
 
-1. `20260901000000_init.sql` — tables, Row Level Security, the two storage
-   buckets.
-2. `20260901010000_public_profiles.sql` — the artist page URLs.
+Either paste the files in `supabase/migrations/` one at a time in filename
+order, or paste the whole schema in one go:
+
+```bash
+cat supabase/migrations/*.sql | pbcopy      # macOS
+cat supabase/migrations/*.sql | xclip -sel c # Linux
+```
+
+That creates five tables, thirteen Row Level Security policies and the two
+storage buckets. Running it again changes nothing — every statement is written
+to be re-runnable — so it is safe to paste twice if you lose track.
 
 There is no output to read: if a statement fails, the editor says so in red.
 

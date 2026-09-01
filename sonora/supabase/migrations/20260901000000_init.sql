@@ -42,6 +42,7 @@ create table if not exists public.profiles (
   constraint profiles_display_name_len check (char_length(display_name) between 1 and 60)
 );
 
+drop trigger if exists profiles_set_updated_at on public.profiles;
 create trigger profiles_set_updated_at
   before update on public.profiles
   for each row execute function public.set_updated_at();
@@ -114,6 +115,7 @@ create index if not exists tracks_owner_created_idx  on public.tracks (owner_id,
 create index if not exists tracks_public_created_idx on public.tracks (created_at desc) where visibility = 'public';
 create index if not exists tracks_short_id_idx       on public.tracks (short_id);
 
+drop trigger if exists tracks_set_updated_at on public.tracks;
 create trigger tracks_set_updated_at
   before update on public.tracks
   for each row execute function public.set_updated_at();
