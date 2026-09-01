@@ -38,6 +38,7 @@ account needed to upload or to listen.
 | `/upload` | The upload and publish screen — open to everyone |
 | `/library` | My tracks, with statistics and quick actions |
 | `/track/<slug>-<id>` | The listening page — works signed out |
+| `/u/<name>-<id>` | An artist's public page: their public tracks, nothing else |
 | `/settings` | Artist name, password, sign out |
 
 ## Design
@@ -145,8 +146,9 @@ a server route:
 
 - **Row Level Security is on for every table.** A private track is invisible to
   everyone but its owner — not filtered in the UI, absent from the query result.
-- **Unlisted tracks are readable but never listed.** Public listings filter on
-  `visibility = 'public'`; an unlisted page also sends `noindex`.
+- **Unlisted tracks are readable but never listed.** Public listings — the home
+  page and every artist page — filter on `visibility = 'public'`; an unlisted
+  page also sends `noindex`.
 - **The audio bucket is private.** Nothing reads it with the anon key. Playback
   goes through `/api/stream/[id]`, which checks the caller against RLS and then
   redirects to a signed URL that expires in an hour and supports HTTP range

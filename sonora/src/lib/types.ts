@@ -3,10 +3,16 @@ export type Visibility = 'public' | 'unlisted' | 'private';
 export interface Profile {
   id: string;
   display_name: string;
+  short_id: string;
+  slug: string;
   bio: string | null;
   avatar_url: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export function profileHref(p: { slug: string; short_id: string }) {
+  return `/u/${p.slug}-${p.short_id}`;
 }
 
 export interface Track {

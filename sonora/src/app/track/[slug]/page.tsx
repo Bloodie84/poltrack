@@ -4,7 +4,7 @@ import TrackView from '@/components/TrackView';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { shortIdFromParam } from '@/lib/slug';
 import { absoluteUrl } from '@/lib/site';
-import { trackHref } from '@/lib/types';
+import { profileHref, trackHref } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +26,19 @@ async function loadTrack(slugParam: string) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return { track: data, viewerId: user?.id ?? null };
+  // The artist page is only offered for a track that is public itself —
+  // linking from an unlisted page would point at a listing it is not part of.
+  let profile: { display_name: string; slug: string; short_id: string } | null = null;
+  if (data.visibility === 'public') {
+    const { data: owner } = await supabase
+      .from('profiles')
+      .select('display_name, slug, short_id')
+      .eq('id', data.owner_id)
+      .maybeSingle();
+    profile = owner ?? null;
+  }
+
+  return { track: data, viewerId: user?.id ?? null, profile };
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
@@ -63,7 +75,7 @@ export default async function TrackPage({ params }: Params) {
   const result = await loadTrack(slug);
   if (!result) notFound();
 
-  const { track, viewerId } = result;
+  const { track, viewerId, profile } = result;
   const file = Array.isArray(track.track_files) ? track.track_files[0] : track.track_files;
   const waveform = Array.isArray(file?.waveform) ? (file.waveform as number[]) : null;
   const shareUrl = await absoluteUrl(trackHref(track));
@@ -89,6 +101,7 @@ export default async function TrackPage({ params }: Params) {
         playCount={track.play_count}
         isOwner={viewerId === track.owner_id}
         visibility={track.visibility}
+        artistPage={profile ? { name: profile.display_name, href: profileHref(profile) } : null}
         fileInfo={
           file
             ? { format: file.format, bitrate: file.bitrate, sampleRate: file.sample_rate }

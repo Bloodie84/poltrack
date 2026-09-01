@@ -14,8 +14,8 @@ import {
 } from '@/lib/format';
 import type { PlayableTrack } from '@/lib/types';
 import {
-  AlertIcon, DownloadIcon, EditIcon, LinkIcon, MuteIcon, PauseIcon, PlayIcon,
-  RepeatIcon, ShareIcon, VolumeIcon,
+  AlertIcon, ChevronRightIcon, DownloadIcon, EditIcon, LinkIcon, MuteIcon, PauseIcon,
+  PlayIcon, RepeatIcon, ShareIcon, VolumeIcon,
 } from './icons';
 
 interface Props {
@@ -27,6 +27,8 @@ interface Props {
   playCount: number;
   isOwner: boolean;
   visibility: 'public' | 'unlisted' | 'private';
+  /** The uploader's public page, when this track is public. */
+  artistPage: { name: string; href: string } | null;
   fileInfo: {
     format: string | null;
     bitrate: number | null;
@@ -36,6 +38,7 @@ interface Props {
 
 export default function TrackView({
   track, shareUrl, description, genre, createdAt, playCount, isOwner, visibility, fileInfo,
+  artistPage,
 }: Props) {
   const p = usePlayer();
   const toast = useToast();
@@ -91,6 +94,12 @@ export default function TrackView({
 
           <h1 className="track__title">{track.title}</h1>
           <p className="track__artist">{track.artist}</p>
+
+          {artistPage && (
+            <Link href={artistPage.href} className="track__artist-link">
+              All tracks by {artistPage.name} <ChevronRightIcon size={13} />
+            </Link>
+          )}
 
           <div className="row row--wrap track__meta">
             <span className="meta">{formatTime(track.duration)}</span>

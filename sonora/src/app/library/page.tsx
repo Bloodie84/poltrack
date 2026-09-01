@@ -5,7 +5,8 @@ import LibraryList, { type LibraryTrack } from '@/components/LibraryList';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getOrigin } from '@/lib/site';
 import { formatCount, plural } from '@/lib/format';
-import { UploadIcon } from '@/components/icons';
+import { EyeIcon, UploadIcon } from '@/components/icons';
+import { profileHref } from '@/lib/types';
 
 export const metadata: Metadata = { title: 'My tracks' };
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,12 @@ export default async function LibraryPage() {
   if (!user) redirect('/login?next=%2Flibrary');
 
   const guest = user.is_anonymous === true || !user.email;
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('slug, short_id')
+    .eq('id', user.id)
+    .maybeSingle();
 
   const { data, error } = await supabase
     .from('tracks')
@@ -50,6 +57,7 @@ export default async function LibraryPage() {
     };
   });
 
+  const publicCount = tracks.filter((t) => t.visibility === 'public').length;
   const totalPlays = tracks.reduce((sum, t) => sum + t.play_count, 0);
   const totalDownloads = tracks.reduce((sum, t) => sum + t.download_count, 0);
 
@@ -64,9 +72,16 @@ export default async function LibraryPage() {
             {plural(totalDownloads, 'download')}
           </p>
         </div>
-        <Link href="/upload" className="btn btn--primary">
-          <UploadIcon size={15} /> Upload
-        </Link>
+        <div className="row" style={{ gap: 8 }}>
+          {profile && publicCount > 0 && (
+            <Link href={profileHref(profile)} className="btn">
+              <EyeIcon size={15} /> Public page
+            </Link>
+          )}
+          <Link href="/upload" className="btn btn--primary">
+            <UploadIcon size={15} /> Upload
+          </Link>
+        </div>
       </div>
 
       {guest && tracks.length > 0 && (

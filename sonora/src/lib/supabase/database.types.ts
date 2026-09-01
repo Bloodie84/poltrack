@@ -10,6 +10,8 @@ type Timestamps = { created_at: string; updated_at: string };
 export type ProfileRow = Timestamps & {
   id: string;
   display_name: string;
+  short_id: string;
+  slug: string;
   bio: string | null;
   avatar_url: string | null;
 }

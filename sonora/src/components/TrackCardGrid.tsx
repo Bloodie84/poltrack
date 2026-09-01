@@ -21,7 +21,14 @@ export interface CardTrack {
   waveform: number[] | null;
 }
 
-export default function TrackCardGrid({ tracks }: { tracks: CardTrack[] }) {
+export default function TrackCardGrid({
+  tracks,
+  showArtist = true,
+}: {
+  tracks: CardTrack[];
+  /** Off on an artist page, where every track has the same name under it. */
+  showArtist?: boolean;
+}) {
   const player = usePlayer();
 
   return (
@@ -62,7 +69,7 @@ export default function TrackCardGrid({ tracks }: { tracks: CardTrack[] }) {
               )}
             </button>
             <Link href={trackHref(t)} className="trackcard__title truncate">{t.title}</Link>
-            <span className="trackcard__artist truncate">{t.artist}</span>
+            {showArtist && <span className="trackcard__artist truncate">{t.artist}</span>}
             <span className="trackcard__meta">
               {formatTime(t.duration)} · {formatCount(t.play_count)} {plural(t.play_count, 'play')}
             </span>

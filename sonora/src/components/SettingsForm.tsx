@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
@@ -10,16 +11,21 @@ import { AlertIcon } from './icons';
 export default function SettingsForm({
   email,
   displayName: initialName,
+  bio: initialBio,
+  publicPage,
   isGuest = false,
 }: {
   email: string;
   displayName: string;
+  bio: string;
+  publicPage: string | null;
   isGuest?: boolean;
 }) {
   const router = useRouter();
   const toast = useToast();
 
   const [displayName, setDisplayName] = useState(initialName);
+  const [bio, setBio] = useState(initialBio);
   const [savingName, setSavingName] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
 
@@ -48,7 +54,7 @@ export default function SettingsForm({
     }
     const { error } = await supabase
       .from('profiles')
-      .update({ display_name: name })
+      .update({ display_name: name, bio: bio.trim() || null })
       .eq('id', user.id);
     setSavingName(false);
     if (error) {
@@ -95,7 +101,10 @@ export default function SettingsForm({
       <form className="card stack stack--16" onSubmit={saveName}>
         <div className="stack stack--4">
           <h2 style={{ fontSize: 17 }}>Profile</h2>
-          <p className="hint">The name suggested as the artist when you upload.</p>
+          <p className="hint">
+            Your name and a few words, shown on your public page along with every track you
+            have set to public.
+          </p>
         </div>
 
         {nameError && (
@@ -112,6 +121,31 @@ export default function SettingsForm({
             maxLength={60}
           />
         </div>
+
+        <div className="field">
+          <label className="label" htmlFor="settings-bio">
+            About you <span className="hint">— optional</span>
+          </label>
+          <textarea
+            id="settings-bio"
+            className="textarea"
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            placeholder="What you make, where you are, anything."
+            maxLength={500}
+            style={{ minHeight: 70 }}
+          />
+        </div>
+
+        {publicPage && (
+          <div className="field">
+            <span className="label">Public page</span>
+            <div className="share-link" style={{ marginBottom: 0 }}>
+              <span className="truncate">{publicPage}</span>
+              <Link href={publicPage} className="btn btn--sm">Open</Link>
+            </div>
+          </div>
+        )}
 
         <div className="field">
           <label className="label" htmlFor="settings-email">E-mail</label>

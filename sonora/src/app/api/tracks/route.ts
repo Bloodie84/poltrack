@@ -126,5 +126,18 @@ export async function POST(request: NextRequest) {
     return fail('Could not save the audio details.', 500);
   }
 
+  // A guest has no profile name of their own yet. Adopt the artist they typed
+  // so their public page is not headed "Artist". 'Artist' is the placeholder
+  // the sign-up trigger uses when there is nothing better.
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('display_name')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (!profile?.display_name || profile.display_name === 'Artist') {
+    await supabase.from('profiles').update({ display_name: artist }).eq('id', user.id);
+  }
+
   return json({ id: track.id, href: trackHref(track) }, 201);
 }
