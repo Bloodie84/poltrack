@@ -1,0 +1,34 @@
+{
+  "name": "sonora",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test:sql": "supabase/tests/run.sh",
+    "test:e2e": "test/e2e/run.sh"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.5",
+    "@supabase/supabase-js": "^2.112.4",
+    "next": "^15.5.25",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^26.4.0",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.25",
+    "pg": "^8.23.0",
+    "supabase": "^2.116.0",
+    "typescript": "5.9"
+  }
+}

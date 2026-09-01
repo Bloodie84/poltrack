@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+.env
+.env.local
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+
+.env.e2e.local
+test-results
+playwright-report
+supabase/.temp
+test/e2e/fixtures
