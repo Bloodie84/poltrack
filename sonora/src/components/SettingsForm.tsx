@@ -4,14 +4,17 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from './Toast';
+import ClaimAccount from './ClaimAccount';
 import { AlertIcon } from './icons';
 
 export default function SettingsForm({
   email,
   displayName: initialName,
+  isGuest = false,
 }: {
   email: string;
   displayName: string;
+  isGuest?: boolean;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -112,7 +115,14 @@ export default function SettingsForm({
 
         <div className="field">
           <label className="label" htmlFor="settings-email">E-mail</label>
-          <input id="settings-email" className="input" value={email} readOnly disabled />
+          <input
+            id="settings-email"
+            className="input"
+            value={isGuest ? '' : email}
+            placeholder={isGuest ? 'None yet — this account lives in this browser' : undefined}
+            readOnly
+            disabled
+          />
         </div>
 
         <div className="row">
@@ -122,6 +132,9 @@ export default function SettingsForm({
         </div>
       </form>
 
+      {isGuest ? (
+        <ClaimAccount />
+      ) : (
       <form className="card stack stack--16" onSubmit={savePassword}>
         <div className="stack stack--4">
           <h2 style={{ fontSize: 17 }}>Password</h2>
@@ -163,13 +176,20 @@ export default function SettingsForm({
           </button>
         </div>
       </form>
+      )}
 
       <div className="card row row--between row--wrap" style={{ gap: 12 }}>
         <div className="stack stack--4">
           <h2 style={{ fontSize: 17 }}>Session</h2>
-          <p className="hint">Sign out of this device.</p>
+          <p className="hint">
+            {isGuest
+              ? 'Forgetting this browser leaves your tracks online but unreachable from here.'
+              : 'Sign out of this device.'}
+          </p>
         </div>
-        <button type="button" className="btn btn--outline" onClick={signOut}>Sign out</button>
+        <button type="button" className="btn btn--outline" onClick={signOut}>
+          {isGuest ? 'Forget this browser' : 'Sign out'}
+        </button>
       </div>
     </div>
   );

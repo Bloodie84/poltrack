@@ -4,12 +4,16 @@ Upload a track. Get a link. Send it.
 
 A small, fast audio host built around four things and nothing else:
 **upload → listen → share → download**. Someone receives a link on their phone,
-opens it, and the track plays. No account, no feed, no comments, no followers.
+opens it, and the track plays. No feed, no comments, no followers — and no
+account needed to upload or to listen.
 
 ---
 
 ## What it does
 
+- **Upload without registering.** Drop a file, fill in a title, publish, get a
+  link. Nothing to remember, no e-mail to confirm. An e-mail and password can be
+  attached later, and every track already uploaded stays yours.
 - **Upload** MP3, WAV, FLAC, M4A and AAC (up to 500 MB) by drag & drop on the
   desktop or the file picker on a phone, with real byte-level progress.
 - **Analyse** the file in the browser: duration, sample rate, bit rate, channel
@@ -31,7 +35,7 @@ opens it, and the track plays. No account, no feed, no comments, no followers.
 | --- | --- |
 | `/` | One line about the service, then Upload / My tracks (signed in) or Log in / Create account |
 | `/login`, `/register` | E-mail + password |
-| `/upload` | The upload and publish screen |
+| `/upload` | The upload and publish screen — open to everyone |
 | `/library` | My tracks, with statistics and quick actions |
 | `/track/<slug>-<id>` | The listening page — works signed out |
 | `/settings` | Artist name, password, sign out |
@@ -102,6 +106,38 @@ buckets: `audio` (private) and `covers` (public).
 cover_url, cover_path, audio_path, duration, visibility, downloads_enabled,
 play_count, download_count, created_at, updated_at`.
 
+## Uploading without an account
+
+The visitor still gets a real Supabase identity — it is just created for them,
+with no e-mail, at the moment they choose a file
+(`supabase.auth.signInAnonymously()`). That matters: **every Row Level Security
+policy keeps working unchanged**, because a guest is an ordinary
+`authenticated` user as far as Postgres is concerned. There is no second,
+weaker ownership path bolted on beside the first one.
+
+What follows from that:
+
+- The session lives in the browser cookie. *My tracks* works, editing works,
+  deleting works — from that browser. The app says so plainly rather than
+  letting someone discover it later.
+- Attaching an e-mail and password (`updateUser`) keeps the same user id, so
+  links, play counts and ownership all survive.
+- Nobody else can touch a guest's track: a request from another browser is
+  refused by the same policies that protect a registered account.
+
+**This has to be enabled in Supabase**: Authentication → Sign In / Providers →
+*Anonymous sign-ins*. If it is off, the upload screen says so instead of
+failing silently.
+
+**It is also a decision with a cost**, so it is worth taking deliberately: an
+open upload endpoint means anyone can consume your storage. Sonora does not
+ship a home-made rate limiter — a per-IP counter punishes everyone behind one
+NAT and is trivially bypassed. Use the protections that sit at the right layer:
+turn on **Captcha for anonymous sign-ins** in Supabase, keep the bucket's
+500 MB file cap, and watch storage usage. If your project should not accept
+anonymous uploads at all, leave anonymous sign-ins off — the rest of the app
+works exactly as before.
+
 ## The security model
 
 Hiding a button is not protection. Every rule is enforced in the database or in
@@ -148,7 +184,9 @@ switch controls the download *feature* — it is not DRM, and no web player is.
    LISTENER_SALT=…                  # any random string
    ```
 
-4. `npm install && npm run dev`
+4. Turn on **Anonymous sign-ins** (Authentication → Sign In / Providers) if you
+   want uploads without registration, and consider enabling Captcha with it.
+5. `npm install && npm run dev`
 
 If you leave e-mail confirmation on in Supabase, add `<your site>/auth/callback`
 to the allowed redirect URLs.
@@ -171,7 +209,10 @@ exercised:
 npm run test:e2e
 ```
 
-They cover: sign-up, log in and out, upload with analysis and progress,
+They cover: uploading and publishing with no account at all, managing that
+track from the same browser and being refused from another, attaching an
+e-mail afterwards and finding every track still there, sign-up, log in and out,
+upload with analysis and progress,
 publishing, playing / pausing / seeking as a signed-out visitor, the waveform,
 the mini player across navigation, share sheet and copy link, downloads on and
 off (including a direct request to the endpoint), public / unlisted / private,

@@ -9,6 +9,8 @@ export default async function Header() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const guest = Boolean(user) && (user!.is_anonymous === true || !user!.email);
+
   let displayName = '';
   if (user) {
     const { data: profile } = await supabase
@@ -16,7 +18,7 @@ export default async function Header() {
       .select('display_name')
       .eq('id', user.id)
       .maybeSingle();
-    displayName = profile?.display_name ?? user.email?.split('@')[0] ?? 'Artist';
+    displayName = profile?.display_name ?? user.email?.split('@')[0] ?? 'Guest';
   }
 
   return (
@@ -26,7 +28,7 @@ export default async function Header() {
           <span className="logo__mark" aria-hidden="true"><i /><i /><i /><i /></span>
           {SITE_NAME}
         </Link>
-        <HeaderNav user={user ? { email: user.email ?? null, displayName } : null} />
+        <HeaderNav user={user ? { email: user.email ?? null, displayName, guest } : null} />
       </div>
     </header>
   );

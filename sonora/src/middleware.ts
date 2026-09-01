@@ -32,7 +32,8 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname, search } = request.nextUrl;
-  const isProtected = ['/upload', '/library', '/settings'].some(
+  // /upload is deliberately open: uploading does not require registering.
+  const isProtected = ['/library', '/settings'].some(
     (p) => pathname === p || pathname.startsWith(`${p}/`)
   );
 

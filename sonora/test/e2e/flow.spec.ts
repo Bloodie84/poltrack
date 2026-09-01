@@ -19,7 +19,9 @@ test('log out and log back in', async ({ page }) => {
   await page.getByRole('button', { name: 'Account menu' }).click();
   await page.getByRole('menuitem', { name: 'Sign out' }).click();
   await page.waitForURL((url) => url.pathname === '/');
-  await expect(page.getByRole('navigation').getByRole('link', { name: 'Create account' })).toBeVisible();
+  const nav = page.getByRole('navigation');
+  await expect(nav.getByRole('link', { name: 'Log in' })).toBeVisible();
+  await expect(nav.getByRole('link', { name: 'Upload' })).toBeVisible();
 
   await login(page, email);
   await expect(page.getByRole('heading', { name: 'My tracks' })).toBeVisible();
@@ -39,7 +41,7 @@ test('upload, publish, and play the track as an anonymous visitor', async ({ pag
 
   await expect(guestPage.getByRole('heading', { name: 'Midnight Drive' })).toBeVisible();
   await expect(guestPage.locator('.track__artist')).toHaveText('Nova Grey');
-  await expect(guestPage.getByRole('navigation').getByRole('link', { name: 'Create account' })).toBeVisible();
+  await expect(guestPage.getByRole('navigation').getByRole('link', { name: 'Log in' })).toBeVisible();
 
   // The waveform was computed at upload time and is drawn on a canvas.
   const wave = guestPage.locator('.track__wave canvas');

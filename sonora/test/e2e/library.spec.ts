@@ -133,13 +133,18 @@ test('settings let the artist rename themselves', async ({ page }) => {
   await expect(page.getByLabel('Artist')).toHaveValue('New Name');
 });
 
-test('protected pages redirect a signed-out visitor to the log-in screen', async ({ browser }) => {
+test('the dashboard needs a session, but uploading never does', async ({ browser }) => {
   const guest = await browser.newContext();
   const page = await guest.newPage();
 
-  for (const route of ['/upload', '/library', '/settings']) {
+  for (const route of ['/library', '/settings']) {
     await page.goto(route);
     await expect(page).toHaveURL(new RegExp(`/login\\?next=%2F${route.slice(1)}`));
   }
+
+  // Uploading is deliberately open to anyone.
+  await page.goto('/upload');
+  await expect(page).toHaveURL(/\/upload$/);
+  await expect(page.getByRole('heading', { name: 'Upload a track' })).toBeVisible();
   await guest.close();
 });

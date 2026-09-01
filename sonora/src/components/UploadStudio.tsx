@@ -1,7 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import ClaimAccount from './ClaimAccount';
 import CoverArt from './CoverArt';
 import ShareSheet from './ShareSheet';
 import Switch from './Switch';
@@ -12,6 +14,8 @@ import { copyText } from '@/lib/clipboard';
 import { analyzeAudioFile, isAcceptedAudio, MAX_FILE_BYTES, type AudioAnalysis } from '@/lib/audio';
 import { formatBitrate, formatBytes, formatSampleRate, formatTime } from '@/lib/format';
 import { audioMime, imageMime } from '@/lib/mime';
+import { createClient } from '@/lib/supabase/client';
+import { ensureSession } from '@/lib/supabase/session';
 import { putToSignedUrl, requestSignedUpload } from '@/lib/uploadClient';
 import type { Visibility } from '@/lib/types';
 import {
@@ -20,11 +24,20 @@ import {
 
 type Stage = 'idle' | 'working' | 'ready' | 'publishing' | 'done';
 
+const ARTIST_KEY = 'sonora:artist';
 const IMAGE_ACCEPT = '.jpg,.jpeg,.png,.webp,.avif';
 const AUDIO_ACCEPT = '.mp3,.wav,.flac,.m4a,.aac,audio/*';
 
-export default function UploadStudio({ defaultArtist }: { defaultArtist: string }) {
+export default function UploadStudio({
+  defaultArtist,
+  isGuest,
+}: {
+  defaultArtist: string;
+  /** True when nobody is signed in, or the session has no e-mail attached. */
+  isGuest: boolean;
+}) {
   const toast = useToast();
+  const router = useRouter();
 
   const [stage, setStage] = useState<Stage>('idle');
   const [file, setFile] = useState<File | null>(null);
@@ -37,6 +50,7 @@ export default function UploadStudio({ defaultArtist }: { defaultArtist: string 
 
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState(defaultArtist);
+  const [artistReady, setArtistReady] = useState(!isGuest);
   const [description, setDescription] = useState('');
   const [genre, setGenre] = useState('');
   const [visibility, setVisibility] = useState<Visibility>('public');
@@ -55,6 +69,15 @@ export default function UploadStudio({ defaultArtist }: { defaultArtist: string 
   const dragDepth = useRef(0);
 
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  // A guest has no profile to draw a name from, so the last one they typed is
+  // remembered in this browser and offered again next time.
+  useEffect(() => {
+    if (!isGuest) return;
+    const remembered = window.localStorage.getItem(ARTIST_KEY);
+    if (remembered) setArtist((current) => current || remembered);
+    setArtistReady(true);
+  }, [isGuest]);
   useEffect(() => {
     if (!coverPreview) return;
     return () => URL.revokeObjectURL(coverPreview);
@@ -88,6 +111,15 @@ export default function UploadStudio({ defaultArtist }: { defaultArtist: string 
       }
       if (picked.size > MAX_FILE_BYTES) {
         setError(`That file is ${formatBytes(picked.size)} — the limit is 500 MB.`);
+        return;
+      }
+
+      // Uploading does not require an account: if there is no session, one is
+      // created on the spot and can be claimed with an e-mail later.
+      try {
+        await ensureSession(createClient());
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Could not start a session.');
         return;
       }
 
@@ -210,9 +242,11 @@ export default function UploadStudio({ defaultArtist }: { defaultArtist: string 
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error ?? 'Could not publish the track.');
 
+      if (isGuest) window.localStorage.setItem(ARTIST_KEY, artist.trim());
       setPublishedHref(body.href);
       setPublishedUrl(`${window.location.origin}${body.href}`);
       setStage('done');
+      router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not publish the track.');
       setStage('ready');
@@ -263,6 +297,12 @@ export default function UploadStudio({ defaultArtist }: { defaultArtist: string 
           </button>
         </div>
 
+        {isGuest && (
+          <div style={{ marginTop: 22 }}>
+            <ClaimAccount compact />
+          </div>
+        )}
+
         {shareOpen && (
           <ShareSheet
             url={publishedUrl}
@@ -277,13 +317,17 @@ export default function UploadStudio({ defaultArtist }: { defaultArtist: string 
 
   const analysing = stage === 'working' && analysisRatio < 1;
   const uploadPercent = Math.round(uploadRatio * 100);
-  const canPublish = stage === 'ready' && Boolean(title.trim() && artist.trim() && audioPath);
+  const canPublish =
+    stage === 'ready' && artistReady && Boolean(title.trim() && artist.trim() && audioPath);
 
   return (
     <div className="stack stack--24">
       <div className="stack stack--4">
         <h1 style={{ fontSize: 26 }}>Upload a track</h1>
-        <p className="hint">MP3, WAV, FLAC, M4A or AAC — up to 500 MB.</p>
+        <p className="hint">
+          MP3, WAV, FLAC, M4A or AAC — up to 500 MB.
+          {isGuest && ' No account needed.'}
+        </p>
       </div>
 
       {error && (

@@ -108,6 +108,35 @@ async function handleAuth(req, res, url) {
 
   if (route === '/signup') {
     const { email, password, data } = body;
+
+    // No credentials at all: this is supabase.auth.signInAnonymously().
+    if (!email && !password) {
+      const created = await asSuperuser((c) =>
+        c.query('insert into auth.users (email, raw_user_meta_data) values (null, $1) returning id', [
+          JSON.stringify(data ?? {}),
+        ])
+      );
+      const anon = created.rows[0];
+      const token = mintToken(anon.id, null);
+      return json(res, 200, {
+        access_token: token,
+        token_type: 'bearer',
+        expires_in: 3600,
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        refresh_token: crypto.randomBytes(16).toString('hex'),
+        user: {
+          id: anon.id,
+          email: '',
+          aud: 'authenticated',
+          role: 'authenticated',
+          app_metadata: {},
+          user_metadata: data ?? {},
+          is_anonymous: true,
+          created_at: new Date().toISOString(),
+        },
+      });
+    }
+
     if (!email || !password) return json(res, 400, { message: 'Email and password required' });
     const exists = await asSuperuser((c) => c.query('select id from auth.users where email = $1', [email]));
     if (exists.rowCount) return json(res, 400, { message: 'User already registered' });
@@ -160,15 +189,39 @@ async function handleAuth(req, res, url) {
     const auth = bearer(req);
     if (!auth.userId) return json(res, 401, { message: 'invalid claim: missing sub claim' });
     if (req.method === 'PUT') {
+      if (body.email) {
+        const taken = await asSuperuser((c) =>
+          c.query('select id from auth.users where email = $1 and id <> $2', [body.email, auth.userId])
+        );
+        if (taken.rowCount) {
+          return json(res, 422, { message: 'A user with this email address has already been registered' });
+        }
+        await asSuperuser((c) =>
+          c.query('update auth.users set email = $2 where id = $1', [auth.userId, body.email])
+        );
+      }
       if (body.password) {
         await asSuperuser((c) =>
-          c.query('update auth.stub_passwords set hash = $2 where user_id = $1', [auth.userId, hash(body.password)])
+          c.query(
+            `insert into auth.stub_passwords (user_id, hash) values ($1, $2)
+             on conflict (user_id) do update set hash = excluded.hash`,
+            [auth.userId, hash(body.password)]
+          )
         );
       }
     }
     const found = await asSuperuser((c) => c.query('select id, email from auth.users where id = $1', [auth.userId]));
     const row = found.rows[0];
-    return json(res, 200, { id: row.id, email: row.email, aud: 'authenticated', role: 'authenticated', app_metadata: {}, user_metadata: {}, created_at: new Date().toISOString() });
+    return json(res, 200, {
+      id: row.id,
+      email: row.email ?? '',
+      aud: 'authenticated',
+      role: 'authenticated',
+      app_metadata: {},
+      user_metadata: {},
+      is_anonymous: !row.email,
+      created_at: new Date().toISOString(),
+    });
   }
 
   if (route === '/logout') {

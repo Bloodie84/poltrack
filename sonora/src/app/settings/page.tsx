@@ -19,12 +19,15 @@ export default async function SettingsPage() {
     .eq('id', user.id)
     .maybeSingle();
 
+  const guest = user.is_anonymous === true || !user.email;
+
   return (
     <div className="container container--narrow">
       <h1 style={{ fontSize: 26, marginBottom: 20 }}>Settings</h1>
       <SettingsForm
         email={user.email ?? ''}
-        displayName={profile?.display_name ?? user.email?.split('@')[0] ?? ''}
+        displayName={profile?.display_name ?? (guest ? '' : user.email?.split('@')[0] ?? '')}
+        isGuest={guest}
       />
     </div>
   );

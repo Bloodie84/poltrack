@@ -17,6 +17,8 @@ export default async function LibraryPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect('/login?next=%2Flibrary');
 
+  const guest = user.is_anonymous === true || !user.email;
+
   const { data, error } = await supabase
     .from('tracks')
     .select(
@@ -66,6 +68,16 @@ export default async function LibraryPage() {
           <UploadIcon size={15} /> Upload
         </Link>
       </div>
+
+      {guest && tracks.length > 0 && (
+        <div className="guest-note">
+          <span>
+            <strong>These tracks live in this browser.</strong> Clear your site data and you lose
+            the way back to them — the links themselves keep working.
+          </span>
+          <Link href="/settings" className="btn btn--sm">Keep them</Link>
+        </div>
+      )}
 
       {error ? (
         <div className="alert alert--error">Could not load your tracks. Refresh to try again.</div>

@@ -1450,3 +1450,60 @@ button, input, select, textarea {
   display: flex;
   line-height: 0;
 }
+
+/* ---------- claim a guest account ---------- */
+
+.claim {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-panel);
+  background: var(--surface);
+  text-align: left;
+}
+
+.claim__fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.claim--compact { padding: 16px; }
+
+.claim--done {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+.claim--done strong { color: var(--text); font-weight: 500; }
+.claim--done svg { flex: none; margin-top: 2px; color: var(--text); }
+
+@media (max-width: 560px) {
+  .claim__fields { grid-template-columns: 1fr; }
+}
+
+/* ---------- guest notice ---------- */
+
+.guest-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 11px 14px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-panel);
+  font-size: 13.5px;
+  color: var(--text-2);
+  margin-bottom: 16px;
+}
+
+.guest-note strong { color: var(--text); font-weight: 500; }
+
+.hero__aside {
+  margin-top: 18px;
+  font-size: 13px;
+  color: var(--text-3);
+  max-width: 44ch;
+}

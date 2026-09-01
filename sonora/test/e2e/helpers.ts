@@ -44,6 +44,8 @@ export async function publishTrack(page: Page, opts: PublishOptions): Promise<st
   await expect(page.getByText('Uploaded and analysed')).toBeVisible({ timeout: 60_000 });
 
   await page.getByLabel('Title').fill(opts.title);
+  const artist = page.getByLabel('Artist');
+  if (!(await artist.inputValue())) await artist.fill('Guest Artist');
   if (opts.visibility && opts.visibility !== 'Public') {
     await page.getByText(opts.visibility, { exact: true }).click();
   }

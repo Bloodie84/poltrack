@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { LogoutIcon, SettingsIcon, UploadIcon } from './icons';
 
 interface Props {
-  user: { email: string | null; displayName: string } | null;
+  user: { email: string | null; displayName: string; guest: boolean } | null;
 }
 
 export default function HeaderNav({ user }: Props) {
@@ -47,12 +47,14 @@ export default function HeaderNav({ user }: Props) {
     return (
       <nav className="nav">
         <Link href="/login" className="nav__link">Log in</Link>
-        <Link href="/register" className="btn btn--primary btn--sm">Create account</Link>
+        <Link href="/upload" className="btn btn--primary btn--sm">
+          <UploadIcon size={15} /> Upload
+        </Link>
       </nav>
     );
   }
 
-  const initial = (user.displayName || user.email || '?').trim().charAt(0).toUpperCase();
+  const initial = user.guest ? '·' : (user.displayName || user.email || '?').trim().charAt(0).toUpperCase();
 
   return (
     <nav className="nav">
@@ -81,15 +83,20 @@ export default function HeaderNav({ user }: Props) {
         {open && (
           <div className="menu__panel" role="menu">
             <div className="menu__head">
-              <div className="truncate" style={{ fontWeight: 520 }}>{user.displayName}</div>
-              <div className="truncate hint">{user.email}</div>
+              <div className="truncate" style={{ fontWeight: 500 }}>
+                {user.guest ? 'Guest' : user.displayName}
+              </div>
+              <div className="truncate hint">
+                {user.guest ? 'Tracks live in this browser' : user.email}
+              </div>
             </div>
             <hr className="divider" />
             <Link href="/settings" className="menu__item" role="menuitem">
-              <SettingsIcon size={15} /> Settings
+              <SettingsIcon size={15} /> {user.guest ? 'Keep my tracks' : 'Settings'}
             </Link>
             <button type="button" className="menu__item" onClick={signOut} disabled={busy} role="menuitem">
-              <LogoutIcon size={15} /> {busy ? 'Signing out…' : 'Sign out'}
+              <LogoutIcon size={15} />{' '}
+              {busy ? 'Signing out…' : user.guest ? 'Forget this browser' : 'Sign out'}
             </button>
           </div>
         )}
