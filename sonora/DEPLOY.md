@@ -4,11 +4,50 @@ Two accounts do the work: **Supabase** holds the data and the audio, **Vercel**
 runs the app. Both have a free tier that is enough to see it live. Budget about
 fifteen minutes.
 
-Nothing here needs a terminal except the last step, and that one is optional.
+There are two routes. The **terminal route** below does most of it in four
+commands; the **click route** after it does the same thing in the dashboard.
+Either is fine.
+
+> These CLI commands are written against `supabase --version 2.116`, but they
+> could not be run against a live project from the environment this repository
+> was built in — no network route to Supabase. The dashboard route is the one
+> that has been walked end to end. If a command below misbehaves, the click
+> route is the fallback, not a workaround.
 
 ---
 
-## 1. Create the Supabase project
+## The terminal route
+
+```bash
+cd sonora
+npm install
+
+npx supabase login                    # opens a browser, stores a token
+npx supabase projects create sonora   # or skip, and use a project you have
+npx supabase link --project-ref <ref> # the ref is in the project URL
+
+npx supabase db push                  # creates the schema (step 2 below)
+
+export SUPABASE_SITE_URL=https://your-domain.com
+export SUPABASE_REDIRECT_URL=https://your-domain.com/auth/callback
+npx supabase config push              # anonymous uploads + redirect URLs
+                                      # (steps 3 and 6 below)
+
+npx supabase projects api-keys --project-ref <ref>   # the keys for step 5
+```
+
+`supabase/config.toml` is version-controlled, so `config push` also carries the
+things that are easy to forget: anonymous sign-ins on, the anonymous rate limit,
+a 500 MB storage ceiling that matches the audio bucket, and a minimum password
+length that agrees with the interface.
+
+Then deploy: `npx vercel --cwd sonora`, or step 5 below in the dashboard.
+
+---
+
+## The click route
+
+### 1. Create the Supabase project
 
 1. [supabase.com](https://supabase.com) → **New project**.
 2. Pick a region close to your listeners — it is where the audio will be
@@ -17,7 +56,7 @@ Nothing here needs a terminal except the last step, and that one is optional.
 
 Wait for the project to finish provisioning.
 
-## 2. Create the schema
+### 2. Create the schema
 
 Supabase dashboard → **SQL Editor** → **New query**, paste, **Run**.
 
@@ -38,20 +77,21 @@ There is no output to read: if a statement fails, the editor says so in red.
 *(With the Supabase CLI linked to the project, `supabase db push` does the same
 thing.)*
 
-## 3. Decide about anonymous uploads
+### 3. Decide about anonymous uploads
 
 Authentication → **Sign In / Providers**:
 
 - **Anonymous sign-ins ON** — anyone can upload without registering. This is
-  the product as designed. Turn on **Captcha** in the same screen: an open
-  upload endpoint is an open storage bill otherwise.
+  the product as designed, and what `supabase config push` sets. Supabase caps
+  anonymous sign-ins per IP per hour (30, in `config.toml`); add **Captcha** in
+  the same screen if the link is going somewhere public.
 - **Anonymous sign-ins OFF** — uploading requires an account. Everything else
   works unchanged; the upload screen says so plainly instead of failing.
 
 While you are here, under **Email**: leave *Confirm email* on for real use. For
 a first look, turning it off lets you register without checking a mailbox.
 
-## 4. Collect the three keys
+### 4. Collect the three keys
 
 Project Settings → **API**:
 
@@ -65,7 +105,7 @@ The `service_role` key bypasses Row Level Security. It goes in the server
 environment and nowhere else — never in a `NEXT_PUBLIC_` name, never in the
 browser, never in the repository.
 
-## 5. Deploy on Vercel
+### 5. Deploy on Vercel
 
 1. [vercel.com](https://vercel.com) → **Add New → Project** → import this
    repository.
@@ -92,7 +132,7 @@ browser, never in the repository.
 
 5. **Deploy.**
 
-## 6. Point Supabase back at the deployment
+### 6. Point Supabase back at the deployment
 
 Authentication → **URL Configuration**:
 
@@ -101,7 +141,7 @@ Authentication → **URL Configuration**:
 
 Without this, the confirmation e-mail link fails.
 
-## 7. Check it
+### 7. Check it
 
 ```bash
 npm run smoke -- https://your-domain.com
