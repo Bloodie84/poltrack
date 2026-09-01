@@ -14,10 +14,10 @@ interface Props {
   ariaLabel?: string;
 }
 
-const PLAYED = '#4fe0c1';
-const UNPLAYED = 'rgba(255,255,255,0.17)';
-const BUFFERED = 'rgba(255,255,255,0.28)';
-const HOVER = 'rgba(255,255,255,0.42)';
+const PLAYED = '#e2a64b';   // --signal
+const UNPLAYED = 'rgba(243,239,231,0.16)';
+const BUFFERED = 'rgba(243,239,231,0.26)';
+const HOVER = 'rgba(243,239,231,0.4)';
 
 /**
  * Canvas waveform. Interactive: click, drag or touch anywhere to seek.

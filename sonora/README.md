@@ -36,6 +36,29 @@ opens it, and the track plays. No account, no feed, no comments, no followers.
 | `/track/<slug>-<id>` | The listening page — works signed out |
 | `/settings` | Artist name, password, sign out |
 
+## Design
+
+**Direction: a piece of studio equipment.** Warm anodised dark metal, bone-white
+controls, and one brass colour that only appears where something is lit — the
+played part of a waveform, the track playing right now, a control that is on.
+The app commits to a single dark world on purpose and paints every colour
+explicitly.
+
+- **Neutrals carry a brown bias** toward the brass (`#0b0a09` ground,
+  `#131110` panels) rather than the usual cold near-black.
+- **One superfamily, three voices**: IBM Plex Sans Condensed for display
+  (the way credits are set on a sleeve), IBM Plex Sans for the interface, and
+  IBM Plex Mono with tabular figures for anything an engineer reads off a
+  device — timecode, kbps, kHz, file size. Self-hosted in `src/fonts`
+  (OFL 1.1), so a build needs no font CDN.
+- **Radii by role**, not one value everywhere: a sleeve is nearly square, a
+  control is barely rounded, a sheet is soft.
+- **A track with no artwork gets a sleeve drawn from its own waveform** — real
+  peak data, so every sleeve differs and none of it is invented decoration. The
+  ground brightens slightly with the track's average level.
+- **State is encoded in form**: visibility is an icon and a label, not a
+  colour, which keeps brass meaning exactly one thing.
+
 ## Architecture
 
 - **Next.js 15** (App Router) and **React 19** in **TypeScript**.

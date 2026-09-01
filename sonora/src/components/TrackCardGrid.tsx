@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import CoverArt from './CoverArt';
+import NowPlaying from './NowPlaying';
 import { usePlayer } from './PlayerProvider';
 import { formatCount, formatTime, plural } from '@/lib/format';
 import { trackHref } from '@/lib/types';
@@ -50,10 +51,15 @@ export default function TrackCardGrid({ tracks }: { tracks: CardTrack[] }) {
                     })
               }
             >
-              <CoverArt url={t.cover_url} alt="" />
+              <CoverArt url={t.cover_url} peaks={t.waveform} alt="" />
               <span className={`trackcard__play ${isCurrent ? 'is-current' : ''}`}>
                 {playing ? <PauseIcon size={16} /> : <PlayIcon size={16} />}
               </span>
+              {isCurrent && (
+                <span className="trackcard__levels">
+                  <NowPlaying paused={!playing} />
+                </span>
+              )}
             </button>
             <Link href={trackHref(t)} className="trackcard__title truncate">{t.title}</Link>
             <span className="trackcard__artist truncate">{t.artist}</span>

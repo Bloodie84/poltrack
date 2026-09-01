@@ -246,7 +246,7 @@ export default function UploadStudio({ defaultArtist }: { defaultArtist: string 
         </div>
 
         <div className="row" style={{ gap: 8 }}>
-          <Link href={publishedHref} className="btn btn--accent" style={{ flex: 1 }}>Open track</Link>
+          <Link href={publishedHref} className="btn btn--primary" style={{ flex: 1 }}>Open track</Link>
           <button type="button" className="btn" onClick={() => setShareOpen(true)}>
             <ShareIcon size={15} /> Share
           </button>
@@ -371,7 +371,7 @@ export default function UploadStudio({ defaultArtist }: { defaultArtist: string 
               </>
             ) : (
               <>
-                <div className="row" style={{ gap: 8, color: 'var(--accent)', fontSize: 13 }}>
+                <div className="row" style={{ gap: 8, color: 'var(--text)', fontSize: 13 }}>
                   <CheckIcon size={15} /> Uploaded and analysed
                 </div>
                 {analysis?.peaks && (

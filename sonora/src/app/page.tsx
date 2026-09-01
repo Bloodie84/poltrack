@@ -39,9 +39,11 @@ export default async function HomePage() {
     <div className="container">
       <section className="hero">
         <h1 className="hero__title">
-          Upload a track.<br />
-          Get a link.<br />
-          <span className="hero__accent">Send it.</span>
+          <span>Upload a track.</span>
+          <br />
+          <span>Get a link.</span>
+          <br />
+          <span>Send it.</span>
         </h1>
         <p className="hero__text">
           A quiet place to put your audio online. One link, a real player, and a download

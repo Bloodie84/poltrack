@@ -27,7 +27,7 @@ export default function MiniPlayer() {
 
       <div className="mini__inner">
         <Link href={href} className="mini__id" aria-label={`Open ${track.title}`}>
-          <CoverArt url={track.coverUrl} alt="" size={40} radius={8} />
+          <CoverArt url={track.coverUrl} peaks={track.waveform} alt="" size={40} radius={4} />
           <span className="mini__text">
             <span className="mini__title truncate">{track.title}</span>
             <span className="mini__artist truncate">{track.artist}</span>

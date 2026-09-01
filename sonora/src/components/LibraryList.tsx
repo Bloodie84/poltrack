@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import CoverArt from './CoverArt';
 import Modal from './Modal';
+import NowPlaying from './NowPlaying';
+import VisibilityChip from './VisibilityChip';
 import ShareSheet from './ShareSheet';
 import StatsPanel from './StatsPanel';
 import TrackEditModal, { type EditableTrack } from './TrackEditModal';
@@ -106,7 +108,12 @@ export default function LibraryList({
           const isCurrent = player.isCurrent(t.id);
           const playing = isCurrent && player.playing;
           return (
-            <li key={t.id} className={`trackrow ${isCurrent ? 'trackrow--current' : ''}`}>
+            <li
+              key={t.id}
+              className={`trackrow ${isCurrent ? 'trackrow--current' : ''} ${
+                openStats === t.id ? 'trackrow--stats-open' : ''
+              }`}
+            >
               <div className="trackrow__main">
                 <button
                   type="button"
@@ -128,16 +135,19 @@ export default function LibraryList({
                   }
                   aria-label={playing ? `Pause ${t.title}` : `Play ${t.title}`}
                 >
-                  <CoverArt url={t.cover_url} alt="" size={46} radius={9} />
+                  <CoverArt url={t.cover_url} peaks={t.waveform} alt="" size={46} radius={4} />
                   <span className="trackrow__playicon">
                     {playing ? <PauseIcon size={15} /> : <PlayIcon size={15} />}
                   </span>
                 </button>
 
                 <div className="trackrow__info">
-                  <Link href={trackHref(t)} className="trackrow__title truncate">{t.title}</Link>
+                  <span className="row" style={{ gap: 8, minWidth: 0 }}>
+                    {isCurrent && <NowPlaying paused={!playing} />}
+                    <Link href={trackHref(t)} className="trackrow__title truncate">{t.title}</Link>
+                  </span>
                   <div className="row row--wrap" style={{ gap: 7 }}>
-                    <span className={`chip chip--${t.visibility}`}>{t.visibility}</span>
+                    <VisibilityChip value={t.visibility} />
                     <span className="meta">{formatTime(t.duration)}</span>
                     <span className="meta__dot" />
                     <span className="meta">{formatCount(t.play_count)} {plural(t.play_count, 'play')}</span>

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import CoverArt from './CoverArt';
 import ShareSheet from './ShareSheet';
+import VisibilityChip from './VisibilityChip';
 import Waveform from './Waveform';
 import { usePlayer } from './PlayerProvider';
 import { useToast } from './Toast';
@@ -69,11 +70,17 @@ export default function TrackView({
   return (
     <article className="track fade-in">
       <div className="track__head">
-        <CoverArt url={track.coverUrl} alt={`${track.title} cover`} className="track__cover" priority />
+        <CoverArt
+          url={track.coverUrl}
+          peaks={track.waveform}
+          alt={`${track.title} cover`}
+          className="track__cover"
+          priority
+        />
 
         <div className="track__intro">
           <div className="row row--wrap" style={{ gap: 8, marginBottom: 12 }}>
-            <span className={`chip chip--${visibility}`}>{visibility}</span>
+            <VisibilityChip value={visibility} />
             {genre && <span className="chip">{genre}</span>}
             {isOwner && (
               <Link href="/library" className="chip" style={{ gap: 5 }}>
@@ -185,7 +192,7 @@ export default function TrackView({
               <ShareIcon size={15} /> Share
             </button>
             {(track.downloadsEnabled || isOwner) && (
-              <a className="btn btn--sm btn--accent" href={`/api/download/${track.id}`}>
+              <a className="btn btn--sm btn--primary" href={`/api/download/${track.id}`}>
                 <DownloadIcon size={15} /> Download
               </a>
             )}

@@ -1,43 +1,54 @@
 /* ==========================================================================
    Sonora — design tokens
-   Dark, quiet, typographic. Colour is used almost only for the waveform.
+
+   Direction: a piece of studio equipment. Warm anodised dark metal, bone-white
+   controls, and one brass colour that appears only where there is signal —
+   the played part of a waveform, the track that is playing right now.
+   The app commits to a single dark world on purpose; every colour is painted
+   explicitly so nothing is borrowed from the host.
    ========================================================================== */
 
 :root {
-  --bg:            #08090b;
-  --bg-veil:       rgba(8, 9, 11, 0.72);
-  --surface:       #0f1115;
-  --surface-2:     #14171c;
-  --surface-3:     #1b1f26;
-  --line:          rgba(255, 255, 255, 0.07);
-  --line-strong:   rgba(255, 255, 255, 0.13);
+  /* Warm neutrals: the greys carry a brown bias toward the brass, so the
+     surfaces read as chosen rather than as default near-black. */
+  --bg:            #0b0a09;
+  --bg-veil:       rgba(11, 10, 9, 0.76);
+  --surface:       #131110;
+  --surface-2:     #1b1918;
+  --surface-3:     #262322;
+  --line:          rgba(245, 238, 226, 0.085);
+  --line-strong:   rgba(245, 238, 226, 0.15);
 
-  --text:          #edeef1;
-  --text-2:        #a2a8b3;
-  --text-3:        #6d7480;
+  --text:          #f3efe7;
+  --text-2:        #a69f94;
+  --text-3:        #6e6862;
 
-  --accent:        #4fe0c1;
-  --accent-dim:    rgba(79, 224, 193, 0.14);
-  --accent-text:   #062019;
+  /* Signal. Used sparingly and only where audio is actually present. */
+  --signal:        #e2a64b;
+  --signal-lit:    #f0b862;
+  --signal-dim:    rgba(226, 166, 75, 0.13);
+  --signal-ink:    #1a1206;
 
-  --danger:        #ff6b6b;
-  --danger-dim:    rgba(255, 107, 107, 0.12);
-  --warn:          #f5c86b;
+  --danger:        #e0685e;
+  --danger-dim:    rgba(224, 104, 94, 0.13);
 
-  --radius-sm: 8px;
-  --radius:    12px;
-  --radius-lg: 18px;
+  /* Radii by role, not one value everywhere: a sleeve is square, a control is
+     barely rounded, a panel is soft. */
+  --r-sleeve: 4px;
+  --r-control: 7px;
+  --r-panel: 12px;
+  --r-sheet: 16px;
 
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-2: 0 8px 30px rgba(0, 0, 0, 0.45);
-  --shadow-3: 0 20px 60px rgba(0, 0, 0, 0.55);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-2: 0 10px 34px rgba(0, 0, 0, 0.5);
+  --shadow-3: 0 24px 70px rgba(0, 0, 0, 0.62);
 
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   --player-h: 76px;
 
-  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI',
-    Inter, Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --font: var(--font-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --display: var(--font-display), var(--font-sans), -apple-system, 'Segoe UI', sans-serif;
+  --mono: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 *,
@@ -57,22 +68,35 @@ body {
   color: var(--text);
   font-size: 15px;
   line-height: 1.55;
-  letter-spacing: -0.006em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100dvh;
 }
 
-h1, h2, h3, h4 {
+/* Display voice: condensed, the way credits are set on a record sleeve. */
+h1, h2, h3, h4, .display {
   margin: 0;
-  font-weight: 560;
-  letter-spacing: -0.025em;
-  line-height: 1.15;
+  font-family: var(--display);
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.08;
+  text-wrap: balance;
 }
 
-h1 { font-size: clamp(28px, 5vw, 40px); }
-h2 { font-size: 20px; }
-h3 { font-size: 16px; }
+h1 { font-size: clamp(30px, 5vw, 42px); }
+h2 { font-size: 21px; }
+h3 { font-size: 17px; }
+
+/* Data voice: anything an engineer reads off a device — timecode, kbps, kHz,
+   file size, counts, the share link itself. */
+.data,
+.mini__time,
+.track__times,
+.stats__value,
+.share-link span {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
 
 p { margin: 0; }
 
@@ -87,12 +111,12 @@ button, input, select, textarea {
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--signal);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
-::selection { background: var(--accent); color: var(--accent-text); }
+::selection { background: var(--signal); color: var(--signal-ink); }
 
 /* ---------- layout ---------- */
 
@@ -162,7 +186,7 @@ button, input, select, textarea {
   display: block;
   width: 2px;
   border-radius: 1px;
-  background: var(--accent);
+  background: var(--signal);
   animation: logo-pulse 1.8s var(--ease) infinite;
 }
 
@@ -188,7 +212,7 @@ button, input, select, textarea {
 
 .nav__link {
   padding: 7px 11px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-control);
   color: var(--text-2);
   font-size: 14px;
   transition: color 0.16s var(--ease), background 0.16s var(--ease);
@@ -210,7 +234,7 @@ button, input, select, textarea {
   height: 36px;
   padding: 0 14px;
   border: 1px solid var(--btn-bd);
-  border-radius: 9px;
+  border-radius: var(--r-control);
   background: var(--btn-bg);
   color: var(--btn-fg);
   font-size: 14px;
@@ -228,19 +252,11 @@ button, input, select, textarea {
 
 .btn--primary {
   --btn-bg: var(--text);
-  --btn-fg: #08090b;
+  --btn-fg: var(--bg);
   --btn-bd: transparent;
-  font-weight: 560;
+  font-weight: 500;
 }
 .btn--primary:hover:not(:disabled) { background: #ffffff; }
-
-.btn--accent {
-  --btn-bg: var(--accent);
-  --btn-fg: var(--accent-text);
-  --btn-bd: transparent;
-  font-weight: 560;
-}
-.btn--accent:hover:not(:disabled) { background: #5ff0d0; }
 
 .btn--ghost {
   --btn-bg: transparent;
@@ -258,8 +274,8 @@ button, input, select, textarea {
 }
 .btn--danger:hover:not(:disabled) { background: rgba(255, 107, 107, 0.2); }
 
-.btn--sm { height: 30px; padding: 0 10px; font-size: 13px; border-radius: 8px; }
-.btn--lg { height: 44px; padding: 0 20px; font-size: 15px; border-radius: 11px; }
+.btn--sm { height: 30px; padding: 0 10px; font-size: 13px; border-radius: 6px; }
+.btn--lg { height: 46px; padding: 0 22px; font-size: 15px; border-radius: 8px; }
 .btn--block { width: 100%; }
 .btn--icon { width: 36px; padding: 0; }
 .btn--icon.btn--sm { width: 30px; }
@@ -270,7 +286,7 @@ button, input, select, textarea {
 
 .label {
   font-size: 12.5px;
-  font-weight: 520;
+  font-weight: 500;
   color: var(--text-2);
   letter-spacing: 0.01em;
 }
@@ -283,7 +299,7 @@ button, input, select, textarea {
   width: 100%;
   background: var(--surface);
   border: 1px solid var(--line-strong);
-  border-radius: 10px;
+  border-radius: var(--r-control);
   padding: 10px 12px;
   font-size: 14.5px;
   transition: border-color 0.16s var(--ease), background 0.16s var(--ease);
@@ -293,7 +309,7 @@ button, input, select, textarea {
 
 .input:focus, .textarea:focus, .select:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--signal);
   background: var(--surface-2);
 }
 
@@ -344,12 +360,12 @@ button, input, select, textarea {
 }
 
 .switch input:checked + .switch__track {
-  background: var(--accent);
+  background: var(--signal);
   border-color: transparent;
 }
 .switch input:checked + .switch__track::after {
   transform: translateX(16px);
-  background: var(--accent-text);
+  background: var(--signal-ink);
 }
 .switch input:disabled + .switch__track { opacity: 0.5; }
 
@@ -363,13 +379,13 @@ button, input, select, textarea {
   align-items: flex-start;
   padding: 12px 13px;
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
+  border-radius: var(--r-panel);
   cursor: pointer;
   transition: border-color 0.16s var(--ease), background 0.16s var(--ease);
 }
 
 .radio-card:hover { background: var(--surface); }
-.radio-card--on { border-color: var(--accent); background: var(--accent-dim); }
+.radio-card--on { border-color: var(--signal); background: var(--signal-dim); }
 .radio-card input { position: absolute; opacity: 0; pointer-events: none; }
 
 .radio-card__dot {
@@ -382,13 +398,13 @@ button, input, select, textarea {
   transition: border-color 0.16s var(--ease);
 }
 
-.radio-card--on .radio-card__dot { border-color: var(--accent); }
+.radio-card--on .radio-card__dot { border-color: var(--signal); }
 .radio-card--on .radio-card__dot::after {
   content: '';
   position: absolute;
   inset: 3px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--signal);
 }
 
 .radio-card__title { font-size: 14px; font-weight: 520; }
@@ -399,14 +415,14 @@ button, input, select, textarea {
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-panel);
   padding: 20px;
 }
 
 .panel {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-panel);
   overflow: hidden;
 }
 
@@ -427,9 +443,12 @@ button, input, select, textarea {
   border: 1px solid var(--line);
 }
 
-.chip--public   { color: var(--accent); background: var(--accent-dim); border-color: transparent; }
-.chip--unlisted { color: var(--warn); background: rgba(245, 200, 107, 0.12); border-color: transparent; }
-.chip--private  { color: var(--text-2); }
+/* Visibility is a state, so it is encoded in form — an icon and a weight —
+   rather than in colour. Brass is reserved for audio signal. */
+.chip--public   { color: var(--text-2); }
+.chip--unlisted { color: var(--text-2); }
+.chip--private  { color: var(--text-3); }
+.chip svg { opacity: 0.85; }
 
 .meta {
   font-size: 12.5px;
@@ -452,9 +471,10 @@ button, input, select, textarea {
 .spacer { flex: 1; }
 
 .section-title {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.09em;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-3);
 }
@@ -466,12 +486,14 @@ button, input, select, textarea {
 .cover {
   position: relative;
   aspect-ratio: 1;
-  border-radius: var(--radius);
+  border-radius: var(--r-sleeve);
   overflow: hidden;
-  background: linear-gradient(150deg, var(--surface-3), var(--surface));
+  background: var(--surface-2);
   border: 1px solid var(--line);
   flex: none;
 }
+
+.cover canvas { display: block; width: 100%; height: 100%; }
 
 .cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
@@ -490,21 +512,21 @@ button, input, select, textarea {
   gap: 10px;
   align-items: flex-start;
   padding: 11px 13px;
-  border-radius: var(--radius);
+  border-radius: var(--r-panel);
   font-size: 13.5px;
   line-height: 1.45;
   border: 1px solid transparent;
 }
 
 .alert--error   { background: var(--danger-dim); color: #ffb0b0; border-color: rgba(255, 107, 107, 0.22); }
-.alert--success { background: var(--accent-dim); color: var(--accent); border-color: rgba(79, 224, 193, 0.22); }
+.alert--success { background: var(--surface-2); color: var(--text); border-color: var(--line-strong); }
 .alert--info    { background: var(--surface-2); color: var(--text-2); border-color: var(--line); }
 
 .empty {
   text-align: center;
   padding: 56px 24px;
   border: 1px dashed var(--line-strong);
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-panel);
   color: var(--text-3);
 }
 
@@ -526,7 +548,7 @@ button, input, select, textarea {
   background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 37%, var(--surface) 63%);
   background-size: 400% 100%;
   animation: shimmer 1.3s ease infinite;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-control);
 }
 
 @keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
@@ -549,7 +571,7 @@ button, input, select, textarea {
 
 .progress__bar {
   height: 100%;
-  background: var(--accent);
+  background: var(--signal);
   border-radius: 999px;
   transition: width 0.25s var(--ease);
 }
@@ -575,7 +597,7 @@ button, input, select, textarea {
   max-width: 420px;
   background: var(--surface);
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-sheet);
   box-shadow: var(--shadow-3);
   padding: 20px;
   animation: modal-in 0.22s var(--ease) both;
@@ -664,7 +686,7 @@ button, input, select, textarea {
   right: 0;
   bottom: 0;
   z-index: 60;
-  background: rgba(15, 17, 21, 0.86);
+  background: rgba(19, 17, 16, 0.88);
   backdrop-filter: saturate(170%) blur(18px);
   -webkit-backdrop-filter: saturate(170%) blur(18px);
   border-top: 1px solid var(--line);
@@ -699,7 +721,8 @@ button, input, select, textarea {
 .mini__id:hover .mini__title { color: #fff; }
 
 .mini__text { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
-.mini__title { font-size: 13.5px; font-weight: 520; transition: color 0.16s var(--ease); }
+.mini__title { font-family: var(--display); font-size: 15px; font-weight: 600; transition: color 0.16s var(--ease); }
+.mini__id:hover .mini__title { color: #fff; }
 .mini__artist { font-size: 12px; color: var(--text-3); }
 
 .mini__play {
@@ -709,7 +732,7 @@ button, input, select, textarea {
   border-radius: 50%;
   border: 0;
   background: var(--text);
-  color: #08090b;
+  color: var(--bg);
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -718,7 +741,7 @@ button, input, select, textarea {
 
 .mini__play:hover { background: #fff; }
 .mini__play:active { transform: scale(0.95); }
-.mini__play .spinner { border-color: rgba(0, 0, 0, 0.2); border-top-color: #08090b; }
+.mini__play .spinner { border-color: rgba(0, 0, 0, 0.2); border-top-color: var(--bg); }
 
 .mini__scrub {
   flex: 1;
@@ -738,7 +761,7 @@ button, input, select, textarea {
 }
 
 .mini__controls { display: flex; align-items: center; gap: 2px; flex: none; }
-.mini__controls .is-on { color: var(--accent); }
+.mini__controls .is-on { color: var(--signal); }
 .mini__volume { display: flex; align-items: center; gap: 6px; }
 
 .range {
@@ -782,7 +805,7 @@ button, input, select, textarea {
   .mini__mobile-progress span {
     display: block;
     height: 100%;
-    background: var(--accent);
+    background: var(--signal);
     transition: width 0.2s linear;
   }
   :root { --player-h: 62px; }
@@ -819,7 +842,7 @@ button, input, select, textarea {
   gap: 8px;
   padding: 14px 6px;
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--r-panel);
   background: var(--surface-2);
   font-size: 12.5px;
   color: var(--text-2);
@@ -858,7 +881,7 @@ button, input, select, textarea {
   width: 210px;
   background: var(--surface-2);
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
+  border-radius: var(--r-panel);
   box-shadow: var(--shadow-2);
   padding: 5px;
   z-index: 50;
@@ -897,15 +920,15 @@ button, input, select, textarea {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: var(--accent-dim);
-  color: var(--accent);
+  background: var(--signal-dim);
+  color: var(--signal);
   display: grid;
   place-items: center;
   margin: 0 auto 14px;
 }
 
 .link { color: var(--text); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line-strong); }
-.link:hover { text-decoration-color: var(--accent); }
+.link:hover { text-decoration-color: var(--signal); }
 
 /* ---------- track page ---------- */
 
@@ -922,10 +945,12 @@ button, input, select, textarea {
 .track__cover { box-shadow: var(--shadow-3); }
 
 .track__title {
-  font-size: clamp(26px, 4.4vw, 38px);
+  font-family: var(--display);
+  font-size: clamp(28px, 4.6vw, 44px);
   font-weight: 600;
-  letter-spacing: -0.032em;
-  margin-bottom: 5px;
+  letter-spacing: -0.015em;
+  line-height: 1.02;
+  margin-bottom: 6px;
 }
 
 .track__artist { color: var(--text-2); font-size: 16px; margin-bottom: 14px; }
@@ -942,7 +967,7 @@ button, input, select, textarea {
   border-radius: 50%;
   border: 0;
   background: var(--text);
-  color: #08090b;
+  color: var(--bg);
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -951,7 +976,7 @@ button, input, select, textarea {
 
 .playbtn:hover { background: #fff; transform: scale(1.03); }
 .playbtn:active { transform: scale(0.97); }
-.playbtn .spinner { border-color: rgba(0, 0, 0, 0.2); border-top-color: #08090b; }
+.playbtn .spinner { border-color: rgba(0, 0, 0, 0.2); border-top-color: var(--bg); }
 
 .track__wave { flex: 1; min-width: 0; }
 
@@ -972,7 +997,7 @@ button, input, select, textarea {
   flex-wrap: wrap;
 }
 
-.track__tools .is-on { color: var(--accent); }
+.track__tools .is-on { color: var(--signal); }
 
 .track__description {
   margin-top: 26px;
@@ -983,15 +1008,21 @@ button, input, select, textarea {
 }
 
 .track__specs {
-  margin-top: 22px;
+  margin-top: 24px;
   display: flex;
-  gap: 18px;
+  gap: 20px;
   flex-wrap: wrap;
   font-size: 12.5px;
   color: var(--text-3);
 }
 
-.track__specs b { color: var(--text-2); font-weight: 520; }
+.track__specs b {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+  font-weight: 500;
+  margin-right: 5px;
+}
 
 @media (max-width: 700px) {
   .track__head {
@@ -1017,7 +1048,7 @@ button, input, select, textarea {
   gap: 16px;
   padding: 13px;
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
+  border-radius: var(--r-panel);
   cursor: pointer;
 }
 
@@ -1046,7 +1077,7 @@ button, input, select, textarea {
   gap: 5px;
   padding: 52px 24px;
   border: 1px dashed var(--line-strong);
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-panel);
   background: var(--surface);
   cursor: pointer;
   text-align: center;
@@ -1056,8 +1087,8 @@ button, input, select, textarea {
 .dropzone:hover { border-color: rgba(255, 255, 255, 0.24); background: var(--surface-2); }
 
 .dropzone--over {
-  border-color: var(--accent);
-  background: var(--accent-dim);
+  border-color: var(--signal);
+  background: var(--signal-dim);
   transform: scale(1.005);
 }
 
@@ -1072,7 +1103,7 @@ button, input, select, textarea {
   margin-bottom: 10px;
 }
 
-.dropzone--over .dropzone__icon { background: var(--accent); color: var(--accent-text); }
+.dropzone--over .dropzone__icon { background: var(--signal); color: var(--signal-ink); }
 .dropzone__title { font-size: 15.5px; font-weight: 540; }
 .dropzone__hint { font-size: 13px; color: var(--text-3); }
 .dropzone__formats { font-size: 11.5px; color: var(--text-3); letter-spacing: 0.06em; margin-top: 10px; }
@@ -1098,7 +1129,7 @@ button, input, select, textarea {
   position: relative;
   display: block;
   cursor: pointer;
-  border-radius: var(--radius);
+  border-radius: var(--r-panel);
   overflow: hidden;
 }
 
@@ -1129,8 +1160,8 @@ button, input, select, textarea {
 .upload-done__badge {
   width: 48px; height: 48px;
   border-radius: 50%;
-  background: var(--accent-dim);
-  color: var(--accent);
+  background: var(--signal-dim);
+  color: var(--signal);
   display: grid;
   place-items: center;
   margin: 0 auto 14px;
@@ -1148,15 +1179,29 @@ button, input, select, textarea {
 
 .edit-grid { display: flex; gap: 14px; align-items: flex-start; }
 
+.trackrow--stats-open { background: rgba(243, 239, 231, 0.02); }
+
 .stats {
-  padding: 14px 16px 16px;
+  padding: 14px 16px 18px 73px;
   border-top: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.012);
+  background: rgba(243, 239, 231, 0.015);
+}
+
+@media (max-width: 720px) {
+  .stats { padding-left: 16px; }
 }
 
 .stats__figures { display: flex; gap: 30px; }
-.stats__value { display: block; font-size: 19px; font-weight: 560; letter-spacing: -0.02em; }
-.stats__label { display: block; font-size: 11.5px; color: var(--text-3); margin-top: 1px; }
+.stats__value { display: block; font-size: 21px; font-weight: 500; letter-spacing: -0.01em; }
+.stats__label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-top: 3px;
+}
 
 .stats__chart {
   display: flex;
@@ -1171,15 +1216,22 @@ button, input, select, textarea {
 .stats__bar {
   flex: 1;
   min-width: 2px;
-  background: var(--accent-dim);
+  background: var(--signal-dim);
   border-radius: 2px;
   transition: background 0.15s var(--ease);
 }
 
 .stats__bar--empty { background: rgba(255, 255, 255, 0.06); }
-.stats__bar:hover { background: var(--accent); }
+.stats__bar:hover { background: var(--signal); }
 
-.stats__caption { margin-top: 7px; font-size: 11.5px; color: var(--text-3); }
+.stats__caption {
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
 
 /* ---------- track list ---------- */
 
@@ -1188,7 +1240,7 @@ button, input, select, textarea {
   margin: 0;
   padding: 0;
   border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-panel);
   overflow: hidden;
   background: var(--surface);
 }
@@ -1196,7 +1248,8 @@ button, input, select, textarea {
 .trackrow { border-bottom: 1px solid var(--line); transition: background 0.16s var(--ease); }
 .trackrow:last-child { border-bottom: 0; }
 .trackrow:hover { background: rgba(255, 255, 255, 0.018); }
-.trackrow--current { background: rgba(79, 224, 193, 0.045); }
+.trackrow--current { background: rgba(226, 166, 75, 0.035); }
+.trackrow--current .trackrow__main { box-shadow: inset 2px 0 0 var(--signal); }
 
 .trackrow__main { display: flex; align-items: center; gap: 13px; padding: 12px 14px; }
 
@@ -1229,16 +1282,18 @@ button, input, select, textarea {
 .trackrow__info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
 
 .trackrow__title {
-  font-size: 14.5px;
-  font-weight: 520;
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.004em;
   display: block;
   transition: color 0.15s var(--ease);
 }
 
-.trackrow__title:hover { color: var(--accent); }
+.trackrow__title:hover { color: #fff; }
 
 .trackrow__actions { display: flex; align-items: center; gap: 1px; flex: none; }
-.trackrow__actions .is-on { color: var(--accent); }
+.trackrow__actions .is-on { color: var(--signal); }
 .trackrow__delete:hover { color: var(--danger); }
 
 @media (max-width: 720px) {
@@ -1260,24 +1315,31 @@ button, input, select, textarea {
 
 /* ---------- home ---------- */
 
-.hero { padding: clamp(28px, 8vh, 80px) 0 8px; max-width: 700px; }
-
-.hero__title {
-  font-size: clamp(34px, 7.2vw, 62px);
-  line-height: 1.04;
-  letter-spacing: -0.04em;
-  font-weight: 600;
-  margin-bottom: 20px;
+.hero {
+  position: relative;
+  padding: clamp(30px, 9vh, 88px) 0 8px;
+  max-width: 700px;
 }
 
-.hero__accent { color: var(--accent); }
+.hero__title {
+  font-family: var(--display);
+  font-size: clamp(38px, 8vw, 74px);
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  margin-bottom: 22px;
+}
+
+/* The first two lines set up the third; emphasis by tone, not by colour. */
+.hero__title span { color: var(--text-2); }
+.hero__title span:last-child { color: var(--text); }
 
 .hero__text {
   color: var(--text-2);
   font-size: 16px;
-  line-height: 1.6;
-  max-width: 480px;
-  margin-bottom: 28px;
+  line-height: 1.62;
+  max-width: 46ch;
+  margin-bottom: 30px;
 }
 
 .hero__actions { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -1300,7 +1362,7 @@ button, input, select, textarea {
   background: none;
   cursor: pointer;
   margin-bottom: 10px;
-  border-radius: var(--radius);
+  border-radius: var(--r-panel);
   line-height: 0;
 }
 
@@ -1312,7 +1374,7 @@ button, input, select, textarea {
   height: 34px;
   border-radius: 50%;
   background: var(--text);
-  color: #08090b;
+  color: var(--bg);
   display: grid;
   place-items: center;
   opacity: 0;
@@ -1323,14 +1385,68 @@ button, input, select, textarea {
 
 .trackcard__cover:hover .trackcard__play,
 .trackcard__play.is-current { opacity: 1; transform: none; }
-.trackcard__play.is-current { background: var(--accent); color: var(--accent-text); }
+.trackcard__play.is-current { background: var(--signal); color: var(--signal-ink); }
 
-.trackcard__title { font-size: 14px; font-weight: 520; display: block; }
-.trackcard__title:hover { color: var(--accent); }
+.trackcard__title {
+  font-family: var(--display);
+  font-size: 15.5px;
+  font-weight: 600;
+  display: block;
+}
+.trackcard__title:hover { color: #fff; }
 .trackcard__artist { font-size: 13px; color: var(--text-2); }
 .trackcard__meta { font-size: 12px; color: var(--text-3); margin-top: 3px; }
 
 @media (max-width: 520px) {
   .cardgrid { grid-template-columns: repeat(2, 1fr); gap: 18px 12px; }
   .hero__actions .btn { flex: 1; }
+}
+
+/* ---------- now playing ---------- */
+
+.levels {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 13px;
+  flex: none;
+}
+
+.levels i {
+  display: block;
+  width: 2px;
+  height: 100%;
+  border-radius: 1px;
+  background: var(--signal);
+  transform-origin: bottom;
+  animation: level 1.05s var(--ease) infinite;
+}
+
+.levels i:nth-child(1) { animation-delay: 0s;    height: 55%; }
+.levels i:nth-child(2) { animation-delay: 0.18s; height: 100%; }
+.levels i:nth-child(3) { animation-delay: 0.36s; height: 72%; }
+.levels i:nth-child(4) { animation-delay: 0.09s; height: 88%; }
+
+.levels--paused i { animation-play-state: paused; opacity: 0.55; }
+
+@keyframes level {
+  0%, 100% { transform: scaleY(0.35); }
+  50%      { transform: scaleY(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .levels i { animation: none; }
+}
+
+.trackcard__levels {
+  position: absolute;
+  left: 9px;
+  bottom: 9px;
+  padding: 5px 7px;
+  border-radius: 4px;
+  background: rgba(11, 10, 9, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  line-height: 0;
 }
