@@ -18,7 +18,7 @@ test('log out and log back in', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Account menu' }).click();
   await page.getByRole('menuitem', { name: 'Sign out' }).click();
-  await page.waitForURL('http://127.0.0.1:3100/');
+  await page.waitForURL((url) => url.pathname === '/');
   await expect(page.getByRole('navigation').getByRole('link', { name: 'Create account' })).toBeVisible();
 
   await login(page, email);
