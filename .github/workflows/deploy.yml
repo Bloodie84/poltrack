@@ -1,0 +1,95 @@
+name: Deploy
+
+# Deploys sonora/ to Vercel. It does nothing until three repository secrets
+# exist — VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID — and says so plainly
+# rather than failing red, so the workflow can sit here waiting to be armed.
+#
+# Everything else the app needs (the Supabase keys, NEXT_PUBLIC_SITE_URL,
+# LISTENER_SALT) lives in the Vercel project's own environment variables and is
+# fetched by `vercel pull`. No Supabase secret is ever stored on GitHub.
+
+on:
+  push:
+    branches: [claude/audio-sharing-platform-pa536y]
+    paths: ['sonora/**', '.github/workflows/deploy.yml']
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: sonora
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build and ship
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: sonora/package-lock.json
+
+      - name: Is this repository armed for deployment?
+        id: armed
+        env:
+          TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          ORG: ${{ secrets.VERCEL_ORG_ID }}
+          PROJECT: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [ -n "$TOKEN" ] && [ -n "$ORG" ] && [ -n "$PROJECT" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            missing=""
+            [ -z "$TOKEN" ] && missing="$missing VERCEL_TOKEN"
+            [ -z "$ORG" ] && missing="$missing VERCEL_ORG_ID"
+            [ -z "$PROJECT" ] && missing="$missing VERCEL_PROJECT_ID"
+            echo "missing=$missing" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Nothing to do yet
+        if: steps.armed.outputs.ready == 'false'
+        run: |
+          echo "::notice title=Deployment not armed::Add these repository secrets to deploy:${{ steps.armed.outputs.missing }} — see sonora/DEPLOY.md"
+          echo "Skipping. This is not a failure."
+
+      - name: Deploy to Vercel
+        if: steps.armed.outputs.ready == 'true'
+        id: vercel
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          npm i -g vercel@latest
+          vercel pull --yes --environment=production --token="$TOKEN"
+          vercel build --prod --token="$TOKEN"
+          url=$(vercel deploy --prebuilt --prod --token="$TOKEN")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Deployed to $url"
+
+      - name: Check the deployment answers correctly
+        if: steps.armed.outputs.ready == 'true'
+        run: |
+          echo "Smoke-testing ${{ steps.vercel.outputs.url }}"
+          npm run smoke -- "${{ steps.vercel.outputs.url }}"
+
+      - name: Summary
+        if: steps.armed.outputs.ready == 'true'
+        run: |
+          {
+            echo "### Deployed"
+            echo ""
+            echo "${{ steps.vercel.outputs.url }}"
+            echo ""
+            echo "All smoke checks passed."
+          } >> "$GITHUB_STEP_SUMMARY"
