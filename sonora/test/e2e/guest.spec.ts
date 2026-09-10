@@ -75,7 +75,13 @@ test('a guest can attach an e-mail later and keep every track', async ({ page, b
   await page.getByLabel('E-mail', { exact: true }).last().fill(email);
   await page.getByLabel('Password').fill('password123');
   await page.getByRole('button', { name: 'Save my account' }).click();
-  await expect(page.getByText(/Saved to/)).toBeVisible({ timeout: 20_000 });
+  const confirmation = page.getByText(/Saved to/);
+  await expect(confirmation).toBeVisible({ timeout: 20_000 });
+
+  // It has to survive the refresh that follows. When confirmation e-mails are
+  // on, this message is the only place the visitor is told to open the link.
+  await page.waitForTimeout(1500);
+  await expect(confirmation).toBeVisible();
 
   // Sign out, sign back in from a clean browser: the track is still ours.
   const fresh = await browser.newContext();

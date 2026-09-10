@@ -64,6 +64,7 @@ export default function UploadStudio({
   const [publishedHref, setPublishedHref] = useState<string | null>(null);
   const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [claimed, setClaimed] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const dragDepth = useRef(0);
@@ -297,9 +298,9 @@ export default function UploadStudio({
           </button>
         </div>
 
-        {isGuest && (
+        {(isGuest || claimed) && (
           <div style={{ marginTop: 22 }}>
-            <ClaimAccount compact />
+            <ClaimAccount compact onClaimed={() => setClaimed(true)} />
           </div>
         )}
 

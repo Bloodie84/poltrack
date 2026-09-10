@@ -24,6 +24,7 @@ export default function SettingsForm({
   const router = useRouter();
   const toast = useToast();
 
+  const [claimed, setClaimed] = useState(false);
   const [displayName, setDisplayName] = useState(initialName);
   const [bio, setBio] = useState(initialBio);
   const [savingName, setSavingName] = useState(false);
@@ -166,8 +167,8 @@ export default function SettingsForm({
         </div>
       </form>
 
-      {isGuest ? (
-        <ClaimAccount />
+      {isGuest || claimed ? (
+        <ClaimAccount onClaimed={() => setClaimed(true)} />
       ) : (
       <form className="card stack stack--16" onSubmit={savePassword}>
         <div className="stack stack--4">

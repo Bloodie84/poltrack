@@ -10,7 +10,19 @@ import { AlertIcon, CheckIcon } from './icons';
  * Attaches an e-mail and password to a guest account. The user id never
  * changes, so every track they have already uploaded stays theirs.
  */
-export default function ClaimAccount({ compact = false }: { compact?: boolean }) {
+export default function ClaimAccount({
+  compact = false,
+  onClaimed,
+}: {
+  compact?: boolean;
+  /**
+   * Fired once the account is saved. The parent must keep rendering this
+   * component afterwards: the refresh below flips `isGuest` on the server, and
+   * without the flag the confirmation — including "open the link we sent" —
+   * would be unmounted before it could be read.
+   */
+  onClaimed?: (email: string) => void;
+}) {
   const router = useRouter();
   const toast = useToast();
   const [email, setEmail] = useState('');
@@ -40,6 +52,7 @@ export default function ClaimAccount({ compact = false }: { compact?: boolean })
     }
     setDone(true);
     toast('Account saved');
+    onClaimed?.(email);
     router.refresh();
   };
 
