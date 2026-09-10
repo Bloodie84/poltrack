@@ -16,6 +16,42 @@ Either is fine.
 
 ---
 
+## The GitHub route
+
+`.github/workflows/deploy.yml` builds, ships and then smoke-tests the
+deployment on every push to this branch. It is inert until three repository
+secrets exist, and says which are missing instead of failing red — so arming it
+is the whole job.
+
+1. **A token**: [vercel.com/account/tokens](https://vercel.com/account/tokens) →
+   create one.
+2. **The project and org ids**: run `npx vercel link` once inside `sonora/`
+   (it writes `.vercel/project.json` with both), or read them in the dashboard —
+   Project Settings → General → *Project ID*, and Account/Team Settings →
+   *Team ID*.
+3. **Add them** at Settings → Secrets and variables → Actions → *New repository
+   secret*, exactly these names:
+
+   ```
+   VERCEL_TOKEN
+   VERCEL_ORG_ID
+   VERCEL_PROJECT_ID
+   ```
+
+4. The Supabase keys do **not** go on GitHub. Set them once in the Vercel
+   project's environment variables (step 5 below); the workflow fetches them
+   with `vercel pull`.
+
+Push anything, or run the workflow by hand from the Actions tab, and it
+deploys. If the site does not answer correctly afterwards, the run goes red —
+a deploy that builds but does not work is a failed deploy.
+
+`.github/workflows/ci.yml` runs alongside it on every push: types, lint, the 29
+SQL security assertions against a real PostgreSQL, and the 30 browser tests
+end to end.
+
+---
+
 ## The terminal route
 
 ```bash
