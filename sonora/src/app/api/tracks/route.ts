@@ -2,11 +2,22 @@ import { NextRequest } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { slugify } from '@/lib/slug';
-import { trackFileColumns, type FileMetaInput } from '@/lib/track-file';
+import { checkedStreamPath, trackFileColumns, type FileMetaInput } from '@/lib/track-file';
 import { cleanMultiline, cleanText, fail, isVisibility, json } from '@/lib/validation';
 import { trackHref } from '@/lib/types';
 
 export const runtime = 'nodejs';
+
+/** Confirms an object is really in the audio bucket before a row names it. */
+async function objectExists(
+  admin: ReturnType<typeof createAdminClient>,
+  path: string
+): Promise<boolean> {
+  const folder = path.slice(0, path.lastIndexOf('/'));
+  const name = path.slice(path.lastIndexOf('/') + 1);
+  const { data } = await admin.storage.from('audio').list(folder, { search: name, limit: 1 });
+  return Boolean(data && data.length > 0);
+}
 
 interface Payload {
   title?: unknown;
@@ -49,13 +60,18 @@ export async function POST(request: NextRequest) {
   if (!audioPath.startsWith(`${user.id}/`)) return fail('Invalid audio file reference.', 403);
   if (coverPath && !coverPath.startsWith(`${user.id}/`)) return fail('Invalid cover reference.', 403);
 
+  const streamPath = checkedStreamPath(body.file ?? {}, user.id);
+  if (streamPath === undefined) return fail('Invalid audio file reference.', 403);
+
   const admin = createAdminClient();
 
   // The object must really exist — otherwise we would publish a dead track.
-  const folder = audioPath.slice(0, audioPath.lastIndexOf('/'));
-  const name = audioPath.slice(audioPath.lastIndexOf('/') + 1);
-  const { data: objects } = await admin.storage.from('audio').list(folder, { search: name, limit: 1 });
-  if (!objects || objects.length === 0) return fail('The uploaded file could not be found.', 400);
+  if (!(await objectExists(admin, audioPath))) {
+    return fail('The uploaded file could not be found.', 400);
+  }
+  // The lighter copy is optional, so a missing one is simply not used rather
+  // than a failed publish: the track still plays, from the master.
+  const usableStream = streamPath && (await objectExists(admin, streamPath)) ? streamPath : null;
 
   let coverUrl: string | null = null;
   if (coverPath) {
@@ -85,7 +101,7 @@ export async function POST(request: NextRequest) {
 
   const { error: fileError } = await supabase.from('track_files').insert({
     track_id: track.id,
-    ...trackFileColumns(body.file ?? {}, audioPath, duration),
+    ...trackFileColumns(body.file ?? {}, audioPath, duration, usableStream),
   });
 
   if (fileError) {

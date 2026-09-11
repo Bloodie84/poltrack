@@ -437,5 +437,37 @@ select public.assert(
 );
 reset role;
 
+-- ===========================================================================
+-- The lighter copy served for playback lives in the owner's folder
+-- ===========================================================================
+reset role;
+
+insert into public.track_files (track_id, storage_path, original_filename, mime_type)
+values ('aaaaaaaa-0000-0000-0000-000000000010',
+        '11111111-1111-1111-1111-111111111111/d/four.mp3', 'four.mp3', 'audio/mpeg');
+
+do $$
+declare failed boolean := false;
+begin
+  begin
+    update public.track_files
+       set stream_path = '22222222-2222-2222-2222-222222222222/x/stolen.mp3'
+     where track_id = 'aaaaaaaa-0000-0000-0000-000000000010';
+  exception when others then
+    failed := true;
+  end;
+  perform public.assert(failed, 'a stream copy outside the owner''s folder is refused');
+end $$;
+
+update public.track_files
+   set stream_path = '11111111-1111-1111-1111-111111111111/d/four.stream.mp3'
+ where track_id = 'aaaaaaaa-0000-0000-0000-000000000010';
+
+select public.assert(
+  (select stream_path from public.track_files
+    where track_id = 'aaaaaaaa-0000-0000-0000-000000000010') is not null,
+  'and one inside it is accepted'
+);
+
 \echo ''
 \echo 'All security assertions passed.'

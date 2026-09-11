@@ -81,18 +81,23 @@ export async function DELETE(_request: NextRequest, { params }: Ctx) {
 
   const { data: track } = await supabase
     .from('tracks')
-    .select('id, audio_path, cover_path, owner_id')
+    .select('id, audio_path, cover_path, owner_id, track_files(stream_path)')
     .eq('id', id)
     .eq('owner_id', user.id)
     .maybeSingle();
 
   if (!track) return fail('Track not found.', 404);
 
+  const files = track.track_files as { stream_path: string | null }[] | { stream_path: string | null } | null;
+  const streamPath = (Array.isArray(files) ? files[0] : files)?.stream_path ?? null;
+
   const { error } = await supabase.from('tracks').delete().eq('id', id).eq('owner_id', user.id);
   if (error) return fail(error.message, 500);
 
   const admin = createAdminClient();
-  if (track.audio_path) await admin.storage.from('audio').remove([track.audio_path as string]);
+  // Both objects go: a track can have a master and a lighter copy for playback.
+  const audio = [track.audio_path as string, streamPath].filter((p): p is string => Boolean(p));
+  if (audio.length) await admin.storage.from('audio').remove(audio);
   if (track.cover_path) await admin.storage.from('covers').remove([track.cover_path as string]);
 
   return json({ ok: true });

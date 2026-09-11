@@ -6,7 +6,10 @@ import { hasUnlockPass } from './unlock';
 export interface ViewableTrack {
   id: string;
   owner_id: string;
+  /** The master: what a download serves, always. */
   audio_path: string;
+  /** The lighter copy, when one was made: what playback serves. */
+  stream_path: string | null;
   visibility: 'public' | 'unlisted' | 'private';
   downloads_enabled: boolean;
   title: string;
@@ -40,7 +43,7 @@ export async function loadTrackForViewer(
   const { data } = await admin
     .from('tracks')
     .select(
-      'id, owner_id, short_id, audio_path, visibility, downloads_enabled, title, artist, expires_at, has_password, track_files(original_filename)'
+      'id, owner_id, short_id, audio_path, visibility, downloads_enabled, title, artist, expires_at, has_password, track_files(original_filename, stream_path)'
     )
     .eq('id', id)
     .maybeSingle();
@@ -63,18 +66,25 @@ export async function loadTrackForViewer(
     return null;
   }
 
-  const files = data.track_files as { original_filename: string }[] | { original_filename: string } | null;
-  const originalName = Array.isArray(files) ? files[0]?.original_filename : files?.original_filename;
+  type FileRow = { original_filename: string; stream_path: string | null };
+  const files = data.track_files as FileRow[] | FileRow | null;
+  const file = Array.isArray(files) ? files[0] : files;
+
+  // The same rule as the master: a path outside the owner's folder is not
+  // signed, whatever the row says.
+  const streamPath =
+    file?.stream_path && file.stream_path.startsWith(`${data.owner_id}/`) ? file.stream_path : null;
 
   return {
     id: data.id,
     owner_id: data.owner_id,
     audio_path: data.audio_path,
+    stream_path: streamPath,
     visibility: data.visibility,
     downloads_enabled: data.downloads_enabled,
     title: data.title,
     artist: data.artist,
-    original_filename: originalName ?? null,
+    original_filename: file?.original_filename ?? null,
   };
 }
 

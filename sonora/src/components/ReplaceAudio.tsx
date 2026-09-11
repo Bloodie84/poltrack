@@ -6,6 +6,7 @@ import { useToast } from './Toast';
 import { ACCEPTED_EXTENSIONS, analyzeAudioFile, isAcceptedAudio, type AudioAnalysis } from '@/lib/audio';
 import { formatBitrate, formatSampleRate, formatTime } from '@/lib/format';
 import { audioMime } from '@/lib/mime';
+import { makeStreamCopy, shouldMakeRendition } from '@/lib/rendition';
 import { putToSignedUrl, requestSignedUpload } from '@/lib/uploadClient';
 import { AlertIcon, CheckIcon, UploadIcon } from './icons';
 
@@ -17,7 +18,7 @@ export interface ReplacedAudio {
   sampleRate: number | null;
 }
 
-type Stage = 'idle' | 'reading' | 'ready' | 'uploading' | 'done';
+type Stage = 'idle' | 'reading' | 'ready' | 'uploading' | 'encoding' | 'done';
 
 /**
  * Swaps the audio behind a track that is already published.
@@ -87,6 +88,22 @@ export default function ReplaceAudio({
         setPercent(Math.round(r * 100))
       );
 
+      // The new file gets the same treatment as a fresh upload: a lighter copy
+      // for playback, so a replacement does not quietly go back to streaming
+      // the master.
+      let stream = null;
+      if (
+        shouldMakeRendition({
+          file,
+          format: analysis.format,
+          duration: analysis.duration,
+          bitrate: analysis.bitrate,
+        })
+      ) {
+        setStage('encoding');
+        stream = await makeStreamCopy(file, (r) => setPercent(Math.round((r ?? 1) * 100)));
+      }
+
       const res = await fetch(`/api/tracks/${trackId}/audio`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -102,6 +119,9 @@ export default function ReplaceAudio({
             sampleRate: analysis.sampleRate,
             channels: analysis.channels,
             waveform: analysis.peaks,
+            streamPath: stream?.path,
+            streamByteSize: stream?.byteSize,
+            streamBitrate: stream?.bitrate,
           },
         }),
       });
@@ -158,7 +178,7 @@ export default function ReplaceAudio({
         <p className="hint replace__status"><span className="spinner" /> Reading {file?.name}…</p>
       )}
 
-      {(stage === 'ready' || stage === 'uploading') && analysis && (
+      {(stage === 'ready' || stage === 'uploading' || stage === 'encoding') && analysis && (
         <div className="replace__staged">
           <p className="replace__name truncate">{file?.name}</p>
           <p className="replace__specs">
@@ -172,10 +192,12 @@ export default function ReplaceAudio({
             <Waveform peaks={analysis.peaks} progress={0} height={36} barWidth={2} gap={1} />
           )}
 
-          {stage === 'uploading' ? (
+          {stage === 'uploading' || stage === 'encoding' ? (
             <div className="stack stack--8" style={{ marginTop: 10 }}>
               <div className="progress"><div className="progress__bar" style={{ width: `${percent}%` }} /></div>
-              <p className="hint">Uploading — {percent}%</p>
+              <p className="hint">
+                {stage === 'encoding' ? 'Preparing a lighter copy' : 'Uploading'} — {percent}%
+              </p>
             </div>
           ) : (
             <div className="row" style={{ gap: 8, marginTop: 10 }}>

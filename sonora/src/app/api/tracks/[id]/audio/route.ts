@@ -1,10 +1,21 @@
 import { NextRequest } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { trackFileColumns, type FileMetaInput } from '@/lib/track-file';
+import { checkedStreamPath, trackFileColumns, type FileMetaInput } from '@/lib/track-file';
 import { fail, json } from '@/lib/validation';
 
 export const runtime = 'nodejs';
+
+/** Confirms an object is really in the audio bucket before a row names it. */
+async function objectExists(
+  admin: ReturnType<typeof createAdminClient>,
+  path: string
+): Promise<boolean> {
+  const folder = path.slice(0, path.lastIndexOf('/'));
+  const name = path.slice(path.lastIndexOf('/') + 1);
+  const { data } = await admin.storage.from('audio').list(folder, { search: name, limit: 1 });
+  return Boolean(data && data.length > 0);
+}
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -46,9 +57,12 @@ export async function POST(request: NextRequest, { params }: Ctx) {
   if (!audioPath.startsWith(`${user.id}/`)) return fail('Invalid audio file reference.', 403);
   if (duration <= 0) return fail('The replacement file has no duration.');
 
+  const streamPath = checkedStreamPath(body.file ?? {}, user.id);
+  if (streamPath === undefined) return fail('Invalid audio file reference.', 403);
+
   const { data: track } = await supabase
     .from('tracks')
-    .select('id, audio_path')
+    .select('id, audio_path, track_files(stream_path)')
     .eq('id', id)
     .eq('owner_id', user.id)
     .maybeSingle();
@@ -58,18 +72,19 @@ export async function POST(request: NextRequest, { params }: Ctx) {
   const previousPath = track.audio_path as string;
   if (previousPath === audioPath) return fail('That is already the track’s file.');
 
+  const files = track.track_files as { stream_path: string | null }[] | { stream_path: string | null } | null;
+  const previousStream = (Array.isArray(files) ? files[0] : files)?.stream_path ?? null;
+
   const admin = createAdminClient();
 
   // Publishing checks this too: a row pointing at nothing is a dead track, and
   // here it would also be a track that used to work.
-  const folder = audioPath.slice(0, audioPath.lastIndexOf('/'));
-  const name = audioPath.slice(audioPath.lastIndexOf('/') + 1);
-  const { data: objects } = await admin.storage
-    .from('audio')
-    .list(folder, { search: name, limit: 1 });
-  if (!objects || objects.length === 0) return fail('The uploaded file could not be found.', 400);
+  if (!(await objectExists(admin, audioPath))) {
+    return fail('The uploaded file could not be found.', 400);
+  }
+  const usableStream = streamPath && (await objectExists(admin, streamPath)) ? streamPath : null;
 
-  const columns = trackFileColumns(body.file ?? {}, audioPath, duration);
+  const columns = trackFileColumns(body.file ?? {}, audioPath, duration, usableStream);
 
   const { error: fileError } = await supabase
     .from('track_files')
@@ -88,13 +103,15 @@ export async function POST(request: NextRequest, { params }: Ctx) {
     // rather than leave the two disagreeing.
     await supabase
       .from('track_files')
-      .update(trackFileColumns({}, previousPath, duration))
+      .update(trackFileColumns({}, previousPath, duration, previousStream))
       .eq('track_id', id);
     return fail(trackError.message, 500);
   }
 
-  // Only once nothing points at it any more.
-  await admin.storage.from('audio').remove([previousPath]);
+  // Only once nothing points at them any more.
+  const stale = [previousPath];
+  if (previousStream && previousStream !== usableStream) stale.push(previousStream);
+  await admin.storage.from('audio').remove(stale);
 
   return json({
     ok: true,

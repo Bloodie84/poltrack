@@ -25,7 +25,14 @@ account needed to upload or to listen.
   keeps playing while you move around the app.
 - **Share** with a copy-link button, WhatsApp, Messenger, X, Facebook, e-mail,
   and the phone's own share sheet where the browser exposes it.
-- **Download** the original file, but only when the owner allows it.
+- **Download** the original file, but only when the owner allows it — and the
+  original really is reserved for that: playback is served from a lighter copy,
+  so a listener is never handed the master.
+- **A lighter copy for listening.** At upload the browser encodes a 128 kbps MP3
+  from the audio it has already decoded, and that is what plays. Opening a link
+  on a phone pulls a few megabytes instead of fifty, and the downloads switch
+  means what it says. Anything already small enough, too long or too large is
+  left alone and streams as before.
 - **Replace the file without changing the link.** A new mix keeps the same URL,
   the same page and the same play count, so every message already sent still
   works — it just plays the new take.
@@ -189,7 +196,11 @@ a server route:
   file.
 - **Downloads are checked server-side.** `/api/download/[id]` refuses with 403
   unless `downloads_enabled` is true or the caller is the owner, and the signed
-  URL it issues lives for two minutes.
+  URL it issues lives for two minutes. It signs the master; `/api/stream/[id]`
+  signs the lighter copy when there is one, so refusing a download is not
+  undone by the player having already been given the same file. A row can only
+  name a copy inside its own owner's folder — a trigger refuses anything else,
+  and the signing route checks again.
 - **Uploads cannot escape their folder.** The client never chooses a storage
   path: the server issues a signed upload URL under `<user id>/…`.
 - **Counters cannot be forged.** `plays` and `downloads` have no insert policy at
@@ -238,7 +249,7 @@ to the allowed redirect URLs.
 
 ## Tests
 
-**Security assertions against a real PostgreSQL** — 54 checks covering every
+**Security assertions against a real PostgreSQL** — 56 checks covering every
 policy (`supabase/tests/rls_test.sql`):
 
 ```bash

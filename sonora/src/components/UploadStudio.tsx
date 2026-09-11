@@ -16,6 +16,7 @@ import { formatBitrate, formatBytes, formatSampleRate, formatTime } from '@/lib/
 import { audioMime, imageMime } from '@/lib/mime';
 import { createClient } from '@/lib/supabase/client';
 import { ensureSession } from '@/lib/supabase/session';
+import { makeStreamCopy, shouldMakeRendition, type StreamCopy } from '@/lib/rendition';
 import { putToSignedUrl, requestSignedUpload } from '@/lib/uploadClient';
 import type { Visibility } from '@/lib/types';
 import {
@@ -44,6 +45,9 @@ export default function UploadStudio({
   const [uploadRatio, setUploadRatio] = useState(0);
   const [analysisRatio, setAnalysisRatio] = useState(0);
   const [analysis, setAnalysis] = useState<AudioAnalysis | null>(null);
+  // The lighter copy for playback, made while the artist fills in the form.
+  const [renditionRatio, setRenditionRatio] = useState<number | null>(null);
+  const renditionRef = useRef<Promise<StreamCopy | null> | null>(null);
   const [audioPath, setAudioPath] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -95,6 +99,8 @@ export default function UploadStudio({
     setAudioPath(null);
     setUploadRatio(0);
     setAnalysisRatio(0);
+    setRenditionRatio(null);
+    renditionRef.current = null;
     setError(null);
     setTitle('');
     setCoverFile(null);
@@ -128,6 +134,8 @@ export default function UploadStudio({
       setStage('working');
       setUploadRatio(0);
       setAnalysisRatio(0);
+      setRenditionRatio(null);
+      renditionRef.current = null;
       setAnalysis(null);
       setAudioPath(null);
       setTitle((current) => current || picked.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim());
@@ -167,9 +175,22 @@ export default function UploadStudio({
       })();
 
       try {
-        const [, path] = await Promise.all([analysisTask, uploadTask]);
+        const [result, path] = await Promise.all([analysisTask, uploadTask]);
         setAudioPath(path);
         setStage('ready');
+
+        // Starts now and runs while the form is being filled in; publishing
+        // waits for it if it is still going. A failure is not an error — the
+        // track is published exactly as it would have been, playing its master.
+        renditionRef.current =
+          result && shouldMakeRendition({
+            file: picked,
+            format: result.format,
+            duration: result.duration,
+            bitrate: result.bitrate,
+          })
+            ? makeStreamCopy(picked, setRenditionRatio, controller.signal)
+            : null;
       } catch (e) {
         if ((e as DOMException)?.name === 'AbortError') return;
         setError(e instanceof Error ? e.message : 'The upload failed.');
@@ -215,6 +236,7 @@ export default function UploadStudio({
     setError(null);
 
     try {
+      const stream = renditionRef.current ? await renditionRef.current : null;
       const res = await fetch('/api/tracks', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -237,6 +259,9 @@ export default function UploadStudio({
             sampleRate: analysis?.sampleRate,
             channels: analysis?.channels,
             waveform: analysis?.peaks,
+            streamPath: stream?.path,
+            streamByteSize: stream?.byteSize,
+            streamBitrate: stream?.bitrate,
           },
         }),
       });
@@ -420,6 +445,12 @@ export default function UploadStudio({
                 <div className="row" style={{ gap: 8, color: 'var(--text)', fontSize: 13 }}>
                   <CheckIcon size={15} /> Uploaded and analysed
                 </div>
+                {renditionRatio !== null && (
+                  <p className="hint row" style={{ gap: 7, marginTop: 8 }}>
+                    <span className="spinner" />
+                    Preparing a lighter copy for listeners — {Math.round(renditionRatio * 100)}%
+                  </p>
+                )}
                 {analysis?.peaks && (
                   <div style={{ marginTop: 12 }}>
                     <Waveform peaks={analysis.peaks} progress={0} height={44} barWidth={2} gap={1} />

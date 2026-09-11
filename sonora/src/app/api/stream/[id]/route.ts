@@ -14,6 +14,10 @@ const SIGNED_TTL_SECONDS = 10 * 60;
  * before the service role touches storage. We then redirect to a short-lived
  * signed URL, which supports HTTP range requests — playback starts immediately
  * and seeking does not download the whole file.
+ *
+ * It serves the lighter copy when the track has one. That is what makes the
+ * downloads switch mean something: with it off, the master is never handed out,
+ * where before the player was already being given it.
  */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -30,7 +34,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const admin = createAdminClient();
   const { data, error } = await admin.storage
     .from('audio')
-    .createSignedUrl(track.audio_path, SIGNED_TTL_SECONDS);
+    .createSignedUrl(track.stream_path ?? track.audio_path, SIGNED_TTL_SECONDS);
 
   if (error || !data?.signedUrl) return fail('This track is temporarily unavailable.', 503);
 

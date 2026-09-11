@@ -17,6 +17,10 @@ export interface FileMetaInput {
   sampleRate?: unknown;
   channels?: unknown;
   waveform?: unknown;
+  /** The lighter copy made in the browser, when there is one. */
+  streamPath?: unknown;
+  streamByteSize?: unknown;
+  streamBitrate?: unknown;
 }
 
 export interface TrackFileColumns {
@@ -30,6 +34,9 @@ export interface TrackFileColumns {
   sample_rate: number | null;
   channels: number | null;
   waveform: number[] | null;
+  stream_path: string | null;
+  stream_byte_size: number | null;
+  stream_bitrate: number | null;
 }
 
 const MAX_PEAKS = 2000;
@@ -53,7 +60,8 @@ export function normalizeWaveform(value: unknown): number[] | null {
 export function trackFileColumns(
   meta: FileMetaInput,
   storagePath: string,
-  duration: number
+  duration: number,
+  streamPath: string | null = null
 ): TrackFileColumns {
   const fallbackName = storagePath.slice(storagePath.lastIndexOf('/') + 1);
   return {
@@ -67,5 +75,21 @@ export function trackFileColumns(
     sample_rate: toInt(meta.sampleRate),
     channels: toInt(meta.channels),
     waveform: normalizeWaveform(meta.waveform),
+    stream_path: streamPath,
+    stream_byte_size: streamPath ? Math.max(0, Number(meta.streamByteSize) || 0) : null,
+    stream_bitrate: streamPath ? toInt(meta.streamBitrate) : null,
   };
+}
+
+/**
+ * The path of the lighter copy, accepted only inside the caller's own folder.
+ * The streaming route signs whatever this names with the service role, so a
+ * path belonging to somebody else would be a way to read their storage — the
+ * same reasoning that constrains the master. Returns undefined when the caller
+ * sent one that is not theirs, so the route can refuse rather than store it.
+ */
+export function checkedStreamPath(meta: FileMetaInput, ownerId: string): string | null | undefined {
+  const value = typeof meta.streamPath === 'string' ? meta.streamPath : '';
+  if (!value) return null;
+  return value.startsWith(`${ownerId}/`) ? value : undefined;
 }

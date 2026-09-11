@@ -53,6 +53,10 @@ export type TrackFileRow = {
   sample_rate: number | null;
   channels: number | null;
   waveform: Json | null;
+  /** The lighter copy served for playback; the master is kept for download. */
+  stream_path: string | null;
+  stream_byte_size: number | null;
+  stream_bitrate: number | null;
   created_at: string;
 }
 
