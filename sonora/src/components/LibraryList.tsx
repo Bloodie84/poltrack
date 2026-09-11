@@ -247,6 +247,7 @@ export default function LibraryList({
           url={urlOf(sharing)}
           title={sharing.title}
           artist={sharing.artist}
+          position={null}
           onClose={() => setSharing(null)}
         />
       )}

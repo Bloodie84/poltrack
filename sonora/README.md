@@ -37,7 +37,7 @@ account needed to upload or to listen.
 | `/login`, `/register` | E-mail + password |
 | `/upload` | The upload and publish screen — open to everyone |
 | `/library` | My tracks, with statistics and quick actions |
-| `/track/<slug>-<id>` | The listening page — works signed out |
+| `/track/<slug>-<id>` | The listening page — works signed out. `?t=1:24` opens at a moment |
 | `/u/<name>-<id>` | An artist's public page: their public tracks, nothing else |
 | `/settings` | Artist name, password, sign out |
 
@@ -63,6 +63,12 @@ explicitly.
   ground brightens slightly with the track's average level.
 - **State is encoded in form**: visibility is an icon and a label, not a
   colour, which keeps brass meaning exactly one thing.
+- **Every link unfurls as a card**, drawn per track at request time by
+  `next/og`: the artwork or the waveform sleeve, the title, the artist and the
+  technical line, in the same palette. A track without a cover used to arrive in
+  a chat as a bare line of text. `next/og` renders through satori, which reads
+  TTF and not WOFF2, so `src/fonts` carries two extra TTFs used only by the
+  server for that one image.
 
 ## Architecture
 

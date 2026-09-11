@@ -309,6 +309,7 @@ export default function UploadStudio({
             url={publishedUrl}
             title={title}
             artist={artist}
+            position={null}
             onClose={() => setShareOpen(false)}
           />
         )}

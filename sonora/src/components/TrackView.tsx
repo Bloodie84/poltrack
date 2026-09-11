@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import CoverArt from './CoverArt';
 import ShareSheet from './ShareSheet';
@@ -12,6 +13,7 @@ import { copyText } from '@/lib/clipboard';
 import {
   formatBitrate, formatCount, formatDate, formatSampleRate, formatTime, plural,
 } from '@/lib/format';
+import { TIMESTAMP_PARAM, formatTimestamp, parseTimestamp } from '@/lib/timestamp';
 import type { PlayableTrack } from '@/lib/types';
 import {
   AlertIcon, ChevronRightIcon, DownloadIcon, EditIcon, LinkIcon, MuteIcon, PauseIcon,
@@ -42,14 +44,26 @@ export default function TrackView({
 }: Props) {
   const p = usePlayer();
   const toast = useToast();
+  const params = useSearchParams();
   const [shareOpen, setShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // A link can name a position: /track/…?t=1:24. Until the track is playing it
+  // is a mark on the waveform and the point playback will start from, so the
+  // visitor sees where they were sent before hearing anything.
+  const [cue, setCue] = useState<number | null>(() =>
+    parseTimestamp(params.get(TIMESTAMP_PARAM))
+  );
 
   const isCurrent = p.isCurrent(track.id);
   const playing = isCurrent && p.playing;
   const duration = (isCurrent && p.duration) || track.duration || 0;
-  const currentTime = isCurrent ? p.currentTime : 0;
+  const cueAt =
+    cue === null ? null : duration > 0 ? Math.min(cue, Math.max(0, duration - 1)) : cue;
+  const currentTime = isCurrent ? p.currentTime : cueAt ?? 0;
   const progress = duration > 0 ? Math.min(1, currentTime / duration) : 0;
+  // What a share carries: where the listener is now, or the mark they arrived on.
+  const sharePosition = isCurrent ? Math.floor(p.currentTime) : cueAt;
 
   useEffect(() => {
     if (!copied) return;
@@ -58,7 +72,13 @@ export default function TrackView({
   }, [copied]);
 
   const onSeek = (ratio: number) => {
-    if (isCurrent) p.seekRatio(ratio);
+    if (isCurrent) {
+      p.seekRatio(ratio);
+      return;
+    }
+    // Nothing is loaded yet, so the click moves the start point instead of
+    // being swallowed: press play and it begins there.
+    if (duration > 0) setCue(Math.min(ratio * duration, Math.max(0, duration - 1)));
   };
 
   const copy = async () => {
@@ -122,7 +142,9 @@ export default function TrackView({
           <button
             type="button"
             className="playbtn"
-            onClick={() => (isCurrent ? p.toggle() : p.play(track))}
+            onClick={() =>
+              isCurrent ? p.toggle() : p.play(track, { startAt: cueAt ?? undefined })
+            }
             aria-label={playing ? 'Pause' : 'Play'}
           >
             {isCurrent && p.loading && !playing ? (
@@ -149,6 +171,15 @@ export default function TrackView({
               <span>{formatTime(currentTime)}</span>
               <span>{formatTime(duration)}</span>
             </div>
+
+            {!isCurrent && cueAt !== null && cueAt > 0 && (
+              <p className="track__cue">
+                Starts at {formatTimestamp(cueAt)}
+                <button type="button" className="linklike" onClick={() => setCue(null)}>
+                  play from the beginning
+                </button>
+              </p>
+            )}
           </div>
         </div>
 
@@ -229,6 +260,7 @@ export default function TrackView({
           url={shareUrl}
           title={track.title}
           artist={track.artist}
+          position={sharePosition}
           onClose={() => setShareOpen(false)}
         />
       )}

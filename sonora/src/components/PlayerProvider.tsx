@@ -25,7 +25,8 @@ interface PlayerState {
 }
 
 interface PlayerApi extends PlayerState {
-  play: (track: PlayableTrack) => void;
+  /** `startAt` opens the track at a position, as a shared timestamped link does. */
+  play: (track: PlayableTrack, options?: { startAt?: number }) => void;
   toggle: (track?: PlayableTrack) => void;
   seekRatio: (ratio: number) => void;
   seekTo: (seconds: number) => void;
@@ -51,6 +52,9 @@ const PLAY_THRESHOLD_SECONDS = 5;
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const countedRef = useRef<Set<string>>(new Set());
+  // A position asked for before the media knows its own duration; applied as
+  // soon as the metadata arrives.
+  const pendingSeekRef = useRef<number | null>(null);
   const listenedRef = useRef(0);
   const lastTimeRef = useRef(0);
 
@@ -93,12 +97,25 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
       setState((s) => ({ ...s, currentTime: t, buffered }));
     };
-    const onLoaded = () =>
+    const onLoaded = () => {
+      const pending = pendingSeekRef.current;
+      if (pending !== null && Number.isFinite(audio.duration)) {
+        pendingSeekRef.current = null;
+        const at = Math.min(Math.max(0, pending), Math.max(0, audio.duration - 0.05));
+        try {
+          audio.currentTime = at;
+          lastTimeRef.current = at;
+        } catch {
+          /* the element refused the seek; playback simply starts at zero */
+        }
+      }
       setState((s) => ({
         ...s,
+        currentTime: audio.currentTime,
         duration: Number.isFinite(audio.duration) ? audio.duration : s.duration,
         loading: false,
       }));
+    };
     const onPlay = () => setState((s) => ({ ...s, playing: true, error: null }));
     const onPause = () => setState((s) => ({ ...s, playing: false }));
     const onWaiting = () => setState((s) => ({ ...s, loading: true }));
@@ -181,25 +198,38 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     navigator.mediaSession.setActionHandler('pause', () => audioRef.current?.pause());
   }, [state.track]);
 
-  const play = useCallback((track: PlayableTrack) => {
+  const play = useCallback((track: PlayableTrack, options?: { startAt?: number }) => {
     const audio = audioRef.current;
     if (!audio) return;
+    const startAt = options?.startAt && options.startAt > 0 ? options.startAt : null;
     const isSame = trackIdRef.current === track.id;
     if (!isSame) {
       listenedRef.current = 0;
-      lastTimeRef.current = 0;
+      lastTimeRef.current = startAt ?? 0;
+      pendingSeekRef.current = startAt;
       audio.src = `/api/stream/${track.id}`;
       audio.load();
       setState((s) => ({
         ...s,
         track,
-        currentTime: 0,
+        currentTime: startAt ?? 0,
         buffered: 0,
         duration: track.duration || 0,
         loading: true,
         error: null,
       }));
     } else {
+      // Already loaded: the position can be applied straight away.
+      if (startAt !== null) {
+        const max = Number.isFinite(audio.duration) ? audio.duration : null;
+        const at = max ? Math.min(startAt, Math.max(0, max - 0.05)) : startAt;
+        try {
+          audio.currentTime = at;
+          lastTimeRef.current = at;
+        } catch {
+          /* seeking before the element is ready */
+        }
+      }
       setState((s) => ({ ...s, track, error: null }));
     }
     audio.play().catch(() => {
@@ -277,6 +307,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
     listenedRef.current = 0;
     lastTimeRef.current = 0;
+    pendingSeekRef.current = null;
     setState((s) => ({
       ...s,
       track: null,

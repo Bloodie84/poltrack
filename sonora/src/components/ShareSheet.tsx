@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { copyText } from '@/lib/clipboard';
+import { formatTimestamp, withTimestamp } from '@/lib/timestamp';
 import { useToast } from './Toast';
 import Modal from './Modal';
 import { CheckIcon, CloseIcon, LinkIcon, MailIcon, ShareIcon } from './icons';
@@ -10,6 +11,8 @@ interface Props {
   url: string;
   title: string;
   artist: string;
+  /** Where the listener is, in seconds — offered as a starting point. */
+  position: number | null;
   onClose: () => void;
 }
 
@@ -19,11 +22,18 @@ function isMobile() {
   return typeof navigator !== 'undefined' && /android|iphone|ipad|ipod/i.test(navigator.userAgent);
 }
 
-export default function ShareSheet({ url, title, artist, onClose }: Props) {
+export default function ShareSheet({ url: baseUrl, title, artist, position, onClose }: Props) {
   const toast = useToast();
   const [copied, setCopied] = useState(false);
   const [canNativeShare, setCanNativeShare] = useState(false);
+  // Off by default: a link that silently skips the opening is a surprise, and
+  // whoever wants to point at a moment knows they want to.
+  const [fromHere, setFromHere] = useState(false);
   const shareText = `${title} — ${artist}`;
+
+  // Under a second in is the beginning; offering to start there says nothing.
+  const at = position !== null && position >= 1 ? Math.floor(position) : null;
+  const url = withTimestamp(baseUrl, fromHere && at !== null ? at : null);
 
   useEffect(() => {
     setCanNativeShare(typeof navigator !== 'undefined' && typeof navigator.share === 'function');
@@ -111,6 +121,17 @@ export default function ShareSheet({ url, title, artist, onClose }: Props) {
       </div>
 
       <p className="hint truncate" style={{ marginBottom: 16 }}>{shareText}</p>
+
+      {at !== null && (
+        <label className="share-at">
+          <input
+            type="checkbox"
+            checked={fromHere}
+            onChange={(e) => setFromHere(e.target.checked)}
+          />
+          <span>Start at <b>{formatTimestamp(at)}</b></span>
+        </label>
+      )}
 
       <div className="share-link">
         <span className="truncate">{url}</span>

@@ -53,6 +53,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const url = await absoluteUrl(trackHref(track));
   const listed = track.visibility === 'public';
 
+  // No `images` here on purpose: opengraph-image.tsx next to this file is the
+  // preview, and declaring images in metadata would override that convention.
+  // Every track gets a card — artwork or not — so the large-image layout always
+  // holds, where before a track without a cover unfurled as a bare line of text.
   return {
     title: `${track.title} — ${track.artist}`,
     description: track.description ?? `Listen to ${track.title} by ${track.artist}.`,
@@ -63,12 +67,11 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
       title: `${track.title} — ${track.artist}`,
       description: track.description ?? `Listen to ${track.title} by ${track.artist}.`,
       url,
-      images: track.cover_url ? [{ url: track.cover_url }] : undefined,
     },
     twitter: {
-      card: track.cover_url ? 'summary_large_image' : 'summary',
+      card: 'summary_large_image',
       title: `${track.title} — ${track.artist}`,
-      images: track.cover_url ? [track.cover_url] : undefined,
+      description: track.description ?? `Listen to ${track.title} by ${track.artist}.`,
     },
   };
 }

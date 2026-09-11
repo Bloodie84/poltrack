@@ -2,6 +2,12 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // The link-preview image is drawn by satori, which needs the font files at
+  // request time. Naming them keeps them in the serverless bundle instead of
+  // being traced away as unreferenced assets.
+  outputFileTracingIncludes: {
+    '/track/[slug]/opengraph-image': ['./src/fonts/*.ttf'],
+  },
   async headers() {
     return [
       {
