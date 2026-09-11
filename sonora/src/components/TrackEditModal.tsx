@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import CoverArt from './CoverArt';
+import LinkControls, { type LinkState } from './LinkControls';
 import ReplaceAudio, { type ReplacedAudio } from './ReplaceAudio';
 import Switch from './Switch';
 import VisibilityPicker from './VisibilityPicker';
@@ -15,6 +16,8 @@ import { AlertIcon, CloseIcon, ImageIcon } from './icons';
 export interface EditableTrack {
   id: string;
   duration: number;
+  has_password: boolean;
+  expires_at: string | null;
   title: string;
   artist: string;
   description: string | null;
@@ -29,11 +32,13 @@ export default function TrackEditModal({
   onClose,
   onSaved,
   onAudioReplaced,
+  onLinkChanged,
 }: {
   track: EditableTrack;
   onClose: () => void;
   onSaved: (patch: Partial<EditableTrack> & { slug?: string; short_id?: string }) => void;
   onAudioReplaced: (result: ReplacedAudio) => void;
+  onLinkChanged: (state: LinkState) => void;
 }) {
   const toast = useToast();
   const [title, setTitle] = useState(track.title);
@@ -169,6 +174,12 @@ export default function TrackEditModal({
           onChange={setDownloads}
           label="Allow downloads"
           description="Listeners can download the original file."
+        />
+
+        <LinkControls
+          trackId={track.id}
+          initial={{ hasPassword: track.has_password, expiresAt: track.expires_at }}
+          onChanged={onLinkChanged}
         />
 
         <ReplaceAudio

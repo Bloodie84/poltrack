@@ -15,7 +15,7 @@ import { copyText } from '@/lib/clipboard';
 import { formatCount, formatDate, formatTime, plural } from '@/lib/format';
 import { trackHref, type Visibility } from '@/lib/types';
 import {
-  ChartIcon, DownloadIcon, EditIcon, LinkIcon, PauseIcon, PlayIcon, ShareIcon, TrashIcon,
+  ChartIcon, DownloadIcon, EditIcon, LinkIcon, LockIcon, PauseIcon, PlayIcon, ShareIcon, TrashIcon,
 } from './icons';
 
 export interface LibraryTrack {
@@ -34,6 +34,8 @@ export interface LibraryTrack {
   download_count: number;
   created_at: string;
   waveform: number[] | null;
+  has_password: boolean;
+  expires_at: string | null;
 }
 
 export default function LibraryList({
@@ -148,6 +150,21 @@ export default function LibraryList({
                   </span>
                   <div className="row row--wrap" style={{ gap: 7 }}>
                     <VisibilityChip value={t.visibility} />
+                    {t.has_password && (
+                      <span className="chip" title="This link asks for a password">
+                        <LockIcon size={11} /> Password
+                      </span>
+                    )}
+                    {t.expires_at && (
+                      <span
+                        className="chip"
+                        title={`This link stops working on ${formatDate(t.expires_at)}`}
+                      >
+                        {new Date(t.expires_at).getTime() <= Date.now()
+                          ? 'Expired'
+                          : `Until ${formatDate(t.expires_at)}`}
+                      </span>
+                    )}
                     <span className="meta">{formatTime(t.duration)}</span>
                     <span className="meta__dot" />
                     <span className="meta">{formatCount(t.play_count)} {plural(t.play_count, 'play')}</span>
@@ -237,6 +254,15 @@ export default function LibraryList({
           onSaved={(patch) =>
             setTracks((list) =>
               list.map((x) => (x.id === editing.id ? { ...x, ...patch } as LibraryTrack : x))
+            )
+          }
+          onLinkChanged={(link) =>
+            setTracks((list) =>
+              list.map((x) =>
+                x.id === editing.id
+                  ? { ...x, has_password: link.hasPassword, expires_at: link.expiresAt }
+                  : x
+              )
             )
           }
           onAudioReplaced={(audio) =>

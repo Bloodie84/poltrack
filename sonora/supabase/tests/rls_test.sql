@@ -287,5 +287,155 @@ select public.assert(
   'the covers bucket is public'
 );
 
+-- ===========================================================================
+-- Link controls: a password on a link, and a date it stops working
+-- ===========================================================================
+reset role;
+
+insert into public.tracks (id, owner_id, title, artist, slug, audio_path, visibility, downloads_enabled)
+values
+  ('aaaaaaaa-0000-0000-0000-000000000010', '11111111-1111-1111-1111-111111111111',
+   'Locked one', 'Alice', 'locked-one', '11111111-1111-1111-1111-111111111111/d/four.mp3', 'public', true),
+  ('aaaaaaaa-0000-0000-0000-000000000011', '11111111-1111-1111-1111-111111111111',
+   'Stale one', 'Alice', 'stale-one', '11111111-1111-1111-1111-111111111111/e/five.mp3', 'public', true);
+
+-- The owner sets a password through the function, never by writing the column.
+set role authenticated;
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', false);
+
+select public.assert(
+  public.set_track_password('aaaaaaaa-0000-0000-0000-000000000010', 'correct-horse'),
+  'the owner can lock their own link'
+);
+
+reset role;
+select public.assert(
+  (select has_password from public.tracks where id = 'aaaaaaaa-0000-0000-0000-000000000010'),
+  'has_password follows the hash'
+);
+select public.assert(
+  (select password_hash from public.tracks where id = 'aaaaaaaa-0000-0000-0000-000000000010')
+    <> 'correct-horse',
+  'the password is never stored in the clear'
+);
+
+update public.tracks set expires_at = now() - interval '1 hour'
+ where id = 'aaaaaaaa-0000-0000-0000-000000000011';
+
+-- The short ids, kept aside: a locked track leaves the listings, so anon can no
+-- longer look one up — and an assertion that could not find the id would pass
+-- for the wrong reason.
+create temporary table link_ids as
+select slug, short_id from public.tracks
+ where slug in ('locked-one', 'stale-one', 'private-one');
+grant select on link_ids to anon, authenticated;
+
+-- Somebody else must not be able to lock a link that is not theirs -----------
+set role authenticated;
+select set_config('request.jwt.claim.sub', '22222222-2222-2222-2222-222222222222', false);
+
+select public.assert(
+  not public.set_track_password('aaaaaaaa-0000-0000-0000-000000000010', 'let-me-in'),
+  'a stranger cannot set the password on somebody else''s link'
+);
+
+-- Listings ------------------------------------------------------------------
+reset role;
+set role anon;
+
+select public.assert(
+  (select count(*) from public.tracks where id = 'aaaaaaaa-0000-0000-0000-000000000010') = 0,
+  'a locked track leaves the public listings'
+);
+select public.assert(
+  (select count(*) from public.tracks where id = 'aaaaaaaa-0000-0000-0000-000000000011') = 0,
+  'an expired track leaves the public listings'
+);
+select public.assert(
+  (select count(*) from public.track_files
+    where track_id = 'aaaaaaaa-0000-0000-0000-000000000010') = 0,
+  'the file row of a locked track goes with it'
+);
+
+-- The link lookup -----------------------------------------------------------
+select public.assert(
+  (select count(*) from public.track_by_short_id(
+     (select short_id from link_ids where slug = 'locked-one'))) = 0,
+  'the link lookup refuses a locked track'
+);
+select public.assert(
+  (select count(*) from public.track_by_short_id(
+     (select short_id from link_ids where slug = 'stale-one'))) = 0,
+  'the link lookup refuses an expired track'
+);
+
+-- track_gate says which screen to show, and nothing more ---------------------
+select public.assert(
+  (select protected from public.track_gate(
+     (select short_id from link_ids where slug = 'locked-one'))),
+  'the gate reports a protected link'
+);
+select public.assert(
+  (select expired from public.track_gate(
+     (select short_id from link_ids where slug = 'stale-one'))),
+  'the gate reports an expired link'
+);
+select public.assert(
+  (select count(*) from public.track_gate(
+     (select short_id from link_ids where slug = 'private-one'))) = 0,
+  'the gate says nothing at all about a private track'
+);
+
+-- Unlocking -----------------------------------------------------------------
+select public.assert(
+  public.track_unlock(
+    (select short_id from link_ids where slug = 'locked-one'), 'correct-horse') is not null,
+  'the right password opens the link'
+);
+select public.assert(
+  public.track_unlock(
+    (select short_id from link_ids where slug = 'locked-one'), 'wrong') is null,
+  'a wrong password does not'
+);
+select public.assert(
+  public.track_unlock(
+    (select short_id from link_ids where slug = 'stale-one'), 'anything') is null,
+  'an expired link cannot be unlocked at all'
+);
+
+-- The owner still sees their own ---------------------------------------------
+reset role;
+set role authenticated;
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', false);
+
+select public.assert(
+  (select count(*) from public.tracks where id in (
+     'aaaaaaaa-0000-0000-0000-000000000010', 'aaaaaaaa-0000-0000-0000-000000000011')) = 2,
+  'the owner still sees their locked and expired tracks'
+);
+select public.assert(
+  (select count(*) from public.track_by_short_id(
+     (select short_id from link_ids where slug = 'locked-one'))) = 1,
+  'and can still open their own locked link'
+);
+
+-- Clearing the password -------------------------------------------------------
+select public.assert(
+  public.set_track_password('aaaaaaaa-0000-0000-0000-000000000010', null),
+  'the owner can remove the password'
+);
+reset role;
+select public.assert(
+  not (select has_password from public.tracks where id = 'aaaaaaaa-0000-0000-0000-000000000010'),
+  'and the track is open again'
+);
+
+set role anon;
+select public.assert(
+  (select count(*) from public.tracks where id = 'aaaaaaaa-0000-0000-0000-000000000010') = 1,
+  'an unlocked track returns to the public listings'
+);
+reset role;
+
 \echo ''
 \echo 'All security assertions passed.'

@@ -33,6 +33,11 @@ export type TrackRow = Timestamps & {
   downloads_enabled: boolean;
   play_count: number;
   download_count: number;
+  /** bcrypt, set and compared only inside the database. */
+  password_hash: string | null;
+  /** Generated from password_hash: the application reads this and never the hash. */
+  has_password: boolean;
+  expires_at: string | null;
 }
 
 export type TrackFileRow = {
@@ -165,6 +170,19 @@ export type Database = {
           sample_rate: number | null;
           waveform: Json | null;
         }[];
+      };
+      track_gate: {
+        Args: { p_short_id: string };
+        Returns: { expired: boolean; protected: boolean }[];
+      };
+      track_unlock: {
+        Args: { p_short_id: string; p_password: string };
+        /** The track id when the password is right, null otherwise. */
+        Returns: string | null;
+      };
+      set_track_password: {
+        Args: { p_track_id: string; p_password: string | null };
+        Returns: boolean;
       };
     };
     Enums: { track_visibility: 'public' | 'unlisted' | 'private' };

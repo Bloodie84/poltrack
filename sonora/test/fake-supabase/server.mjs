@@ -290,7 +290,8 @@ async function handleRest(req, res, url) {
       const values = keys.map((k) => body[k]);
       const args = keys.map((k, i) => `${k} => $${i + 1}`).join(', ');
       // A set-returning function answers with its rows, the way PostgREST does;
-      // anything else is called for its effect and answers null.
+      // a scalar one answers with the value itself, which is how a boolean or an
+      // id comes back from .rpc().
       const returnsRows = await c.query(
         `select p.proretset from pg_proc p
            join pg_namespace n on n.oid = p.pronamespace
@@ -301,8 +302,8 @@ async function handleRest(req, res, url) {
         const out = await c.query(`select * from public.${fn}(${args})`, values);
         return { status: 200, body: out.rows };
       }
-      await c.query(`select public.${fn}(${args})`, values);
-      return { status: 200, body: null };
+      const out = await c.query(`select public.${fn}(${args}) as value`, values);
+      return { status: 200, body: out.rows[0]?.value ?? null };
     })
       .then((out) => json(res, out.status, out.body))
       .catch((e) => json(res, 400, { message: e.message, code: e.code }));

@@ -29,7 +29,7 @@ export default async function LibraryPage() {
   const { data, error } = await supabase
     .from('tracks')
     .select(
-      'id, short_id, slug, title, artist, description, genre, cover_url, duration, visibility, downloads_enabled, play_count, download_count, created_at, track_files(waveform)'
+      'id, short_id, slug, title, artist, description, genre, cover_url, duration, visibility, downloads_enabled, play_count, download_count, created_at, has_password, expires_at, track_files(waveform)'
     )
     .eq('owner_id', user.id)
     .order('created_at', { ascending: false });
@@ -42,6 +42,8 @@ export default async function LibraryPage() {
       id: t.id,
       short_id: t.short_id,
       slug: t.slug,
+      has_password: t.has_password,
+      expires_at: t.expires_at,
       title: t.title,
       artist: t.artist,
       description: t.description,

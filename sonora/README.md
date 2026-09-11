@@ -29,6 +29,10 @@ account needed to upload or to listen.
 - **Replace the file without changing the link.** A new mix keeps the same URL,
   the same page and the same play count, so every message already sent still
   works — it just plays the new take.
+- **Lock a link, or give it an end date.** A password, checked inside the
+  database, or a date after which the link stops working. Both are enforced on
+  the page, on playback and on download, and a locked or expired track drops out
+  of every public listing.
 - **Manage** everything from *My tracks*: play, share, copy link, statistics,
   edit, delete, and flip downloads on or off without republishing.
 
@@ -161,6 +165,20 @@ a server route:
   links. An unlisted track is served by `track_by_short_id`, which takes the
   secret id as an argument and returns at most one row; the link itself is the
   capability. Unlisted pages also send `noindex`.
+- **A locked link is locked in the database.** The password is hashed with
+  bcrypt and compared by a function inside PostgreSQL — `track_unlock` is the
+  only thing that ever touches the hash, and it answers with the track id or
+  with nothing, so a wrong password, an expired link and an id that was never
+  real are indistinguishable. A locked or expired track also leaves the listing
+  policy entirely, and `track_by_short_id` refuses it, so the lock cannot be
+  walked around through the Data API. Typing the password sets an HttpOnly
+  cookie signed for that one link; it proves nothing about any other.
+
+  What it is not: a vault. bcrypt at cost 10 makes each guess cost about sixty
+  milliseconds, which stops a word list but not a determined attacker with time
+  and a weak password. **Private** is still the setting that means nobody but
+  you; a link password is for something you do want to send, but not to whoever
+  the recipient forwards it to.
 - **A track cannot claim a file it does not own.** `audio_path` and
   `cover_path` are constrained to the owner's own storage folder, so no row can
   be pointed at somebody else's master and handed to the signing routes.
@@ -220,7 +238,7 @@ to the allowed redirect URLs.
 
 ## Tests
 
-**Security assertions against a real PostgreSQL** — 34 checks covering every
+**Security assertions against a real PostgreSQL** — 54 checks covering every
 policy (`supabase/tests/rls_test.sql`):
 
 ```bash
