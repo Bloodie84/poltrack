@@ -141,6 +141,31 @@ export type Database = {
     Functions: {
       increment_play: { Args: { p_track_id: string }; Returns: undefined };
       increment_download: { Args: { p_track_id: string }; Returns: undefined };
+      /** Resolves one shared link. Returns nothing for a private track the
+       *  caller does not own, and cannot be asked for more than one row. */
+      track_by_short_id: {
+        Args: { p_short_id: string };
+        Returns: {
+          id: string;
+          owner_id: string;
+          short_id: string;
+          slug: string;
+          title: string;
+          artist: string;
+          description: string | null;
+          genre: string | null;
+          cover_url: string | null;
+          duration: number;
+          visibility: 'public' | 'unlisted' | 'private';
+          downloads_enabled: boolean;
+          play_count: number;
+          created_at: string;
+          format: string | null;
+          bitrate: number | null;
+          sample_rate: number | null;
+          waveform: Json | null;
+        }[];
+      };
     };
     Enums: { track_visibility: 'public' | 'unlisted' | 'private' };
     CompositeTypes: { [_ in never]: never };

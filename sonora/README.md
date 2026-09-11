@@ -146,9 +146,15 @@ a server route:
 
 - **Row Level Security is on for every table.** A private track is invisible to
   everyone but its owner — not filtered in the UI, absent from the query result.
-- **Unlisted tracks are readable but never listed.** Public listings — the home
-  page and every artist page — filter on `visibility = 'public'`; an unlisted
-  page also sends `noindex`.
+- **Unlisted means link-only, enforced in the database.** A bulk read returns
+  public rows and your own, nothing else — so the anon key that ships in every
+  browser cannot be pointed at the Data API to enumerate other people's shared
+  links. An unlisted track is served by `track_by_short_id`, which takes the
+  secret id as an argument and returns at most one row; the link itself is the
+  capability. Unlisted pages also send `noindex`.
+- **A track cannot claim a file it does not own.** `audio_path` and
+  `cover_path` are constrained to the owner's own storage folder, so no row can
+  be pointed at somebody else's master and handed to the signing routes.
 - **The audio bucket is private.** Nothing reads it with the anon key. Playback
   goes through `/api/stream/[id]`, which checks the caller against RLS and then
   redirects to a signed URL that expires in an hour and supports HTTP range
@@ -205,7 +211,7 @@ to the allowed redirect URLs.
 
 ## Tests
 
-**Security assertions against a real PostgreSQL** — 29 checks covering every
+**Security assertions against a real PostgreSQL** — 34 checks covering every
 policy (`supabase/tests/rls_test.sql`):
 
 ```bash

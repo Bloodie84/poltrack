@@ -3,6 +3,10 @@ import path from 'node:path';
 
 export const FIXTURE = path.resolve('test/e2e/fixtures/tone.wav');
 
+/** The Data API as an outsider sees it: the anon key ships in every browser. */
+export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321';
+export const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'anon-key-for-tests';
+
 /** '1:07' -> 67 */
 export function toSeconds(label: string): number {
   const parts = label.trim().split(':').map(Number);
@@ -54,7 +58,9 @@ export async function publishTrack(page: Page, opts: PublishOptions): Promise<st
   }
 
   await page.getByRole('button', { name: 'Publish track' }).click();
-  await expect(page.getByText('Your track is live')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('heading', { name: 'Your track is live' })).toBeVisible({
+    timeout: 30_000,
+  });
 
   const link = await page.locator('.share-link span').first().innerText();
   return link.trim();

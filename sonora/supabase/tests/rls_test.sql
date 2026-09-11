@@ -51,6 +51,11 @@ select public.assert(
   'every track gets a distinct short id'
 );
 
+-- Captured now, as superuser: from here on the roles under test are not
+-- supposed to be able to discover these, which is the whole point.
+select short_id as unlisted_link from public.tracks where title = 'Unlisted one' \gset
+select short_id as private_link  from public.tracks where title = 'Private one'  \gset
+
 insert into public.track_files (track_id, storage_path, original_filename, mime_type, byte_size)
 values ('aaaaaaaa-0000-0000-0000-000000000003',
         '11111111-1111-1111-1111-111111111111/c/three.mp3', 'three.mp3', 'audio/mpeg', 1234);
@@ -59,9 +64,16 @@ values ('aaaaaaaa-0000-0000-0000-000000000003',
 set role anon;
 select set_config('request.jwt.claim.sub', '', false);
 
+-- A bulk read must return public rows only. Returning unlisted ones here is
+-- what made every shared link enumerable through the Data API, since the anon
+-- key ships in the browser.
 select public.assert(
-  (select count(*) from public.tracks) = 2,
-  'anonymous sees public + unlisted, never private'
+  (select count(*) from public.tracks) = 1,
+  'anonymous listing returns public tracks only'
+);
+select public.assert(
+  (select count(*) from public.tracks where visibility = 'unlisted') = 0,
+  'anonymous cannot enumerate unlisted tracks'
 );
 select public.assert(
   (select count(*) from public.tracks where visibility = 'private') = 0,
@@ -74,6 +86,21 @@ select public.assert(
 select public.assert(
   (select count(*) from public.track_files) = 0,
   'anonymous cannot read the file row of a private track'
+);
+
+-- The link itself is the capability: handing the secret id to the function
+-- returns exactly one row, and nothing else can be asked of it.
+select public.assert(
+  (select count(*) from public.track_by_short_id(:'unlisted_link')) = 1,
+  'an unlisted track opens for whoever holds its link'
+);
+select public.assert(
+  (select count(*) from public.track_by_short_id('ffffffffffff')) = 0,
+  'an invented link resolves to nothing'
+);
+select public.assert(
+  (select count(*) from public.track_by_short_id(:'private_link')) = 0,
+  'a private track stays shut even to somebody holding its link'
 );
 select public.assert(
   (select count(*) from public.plays) = 0,
@@ -112,8 +139,8 @@ set role authenticated;
 select set_config('request.jwt.claim.sub', '22222222-2222-2222-2222-222222222222', false);
 
 select public.assert(
-  (select count(*) from public.tracks) = 2,
-  'another signed-in user still cannot see the private track'
+  (select count(*) from public.tracks) = 1,
+  'another signed-in user sees only public tracks, not private or unlisted ones'
 );
 
 do $$
@@ -146,6 +173,22 @@ select public.assert(
   (select count(*) from public.plays) = 0,
   'a user cannot read the statistics of someone else''s track'
 );
+
+-- Owning the row must not mean naming somebody else's file. Without this, a
+-- user could point a track of their own at another account's master and have
+-- the download route sign it with the service role.
+do $$
+begin
+  begin
+    insert into public.tracks (owner_id, title, artist, audio_path)
+    values ('22222222-2222-2222-2222-222222222222', 'Forged', 'Me',
+            '11111111-1111-1111-1111-111111111111/a/master.wav');
+    raise exception 'FAIL a user could claim another account''s audio file';
+  exception when check_violation then
+    raise notice 'ok   a track cannot name a file outside its owner''s folder';
+  end;
+end
+$$;
 
 -- Alice, signed in ----------------------------------------------------------
 select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', false);

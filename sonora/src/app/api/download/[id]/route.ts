@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { loadTrackForViewer } from '@/lib/track-access';
 import { listenerHash } from '@/lib/listener';
 import { fail } from '@/lib/validation';
 
@@ -21,28 +22,23 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: track } = await supabase
-    .from('tracks')
-    .select('id, owner_id, audio_path, downloads_enabled, title, artist, track_files(original_filename)')
-    .eq('id', id)
-    .maybeSingle();
-
-  if (!track?.audio_path) return fail('Not found.', 404);
+  const track = await loadTrackForViewer(id, user?.id ?? null);
+  if (!track) return fail('Not found.', 404);
 
   const isOwner = user?.id === track.owner_id;
   if (!track.downloads_enabled && !isOwner) {
     return fail('Downloads are turned off for this track.', 403);
   }
 
-  const files = track.track_files as { original_filename: string }[] | { original_filename: string } | null;
-  const originalName = Array.isArray(files) ? files[0]?.original_filename : files?.original_filename;
-  const extension = originalName?.includes('.') ? originalName.slice(originalName.lastIndexOf('.')) : '';
+  const extension = track.original_filename?.includes('.')
+    ? track.original_filename.slice(track.original_filename.lastIndexOf('.'))
+    : '';
   const downloadName = `${track.artist} - ${track.title}${extension}`.replace(/[\\/:*?"<>|]/g, '_');
 
   const admin = createAdminClient();
   const { data, error } = await admin.storage
     .from('audio')
-    .createSignedUrl(track.audio_path as string, 120, { download: downloadName });
+    .createSignedUrl(track.audio_path, 120, { download: downloadName });
 
   if (error || !data?.signedUrl) return fail('This file is temporarily unavailable.', 503);
 

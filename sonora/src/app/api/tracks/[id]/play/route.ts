@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { loadTrackForViewer } from '@/lib/track-access';
 import { listenerHash } from '@/lib/listener';
 import { fail, json } from '@/lib/validation';
 
@@ -19,8 +20,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     data: { user },
   } = await supabase.auth.getUser();
 
-  // RLS decides whether this caller may see the track at all.
-  const { data: track } = await supabase.from('tracks').select('id').eq('id', id).maybeSingle();
+  // Same rule as playback: the id is the capability, private stays private.
+  const track = await loadTrackForViewer(id, user?.id ?? null);
   if (!track) return fail('Not found.', 404);
 
   const hash = listenerHash(request, user?.id ?? null);

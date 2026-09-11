@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { publishTrack, register, trackIdFrom, uniqueEmail } from './helpers';
+import { ANON_KEY, SUPABASE_URL, publishTrack, register, trackIdFrom, uniqueEmail } from './helpers';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -120,4 +120,27 @@ test('a signed-in user cannot edit or delete somebody else’s track', async ({ 
   await page.goto(url);
   await expect(page.getByRole('heading', { name: 'Not Yours' })).toBeVisible();
   await intruder.close();
+});
+
+test('unlisted tracks cannot be enumerated through the data API', async ({ page, request }) => {
+  await register(page, uniqueEmail('enum'), 'Quiet Artist');
+  const url = await publishTrack(page, { title: 'Link Only Please', visibility: 'Unlisted' });
+
+  // The attacker's whole toolkit: the anon key, which every visitor's browser
+  // already has. No account, no JWT.
+  const asOutsider = (query: string) =>
+    request.get(`${SUPABASE_URL}/rest/v1/tracks?${query}`, { headers: { apikey: ANON_KEY } });
+
+  const unlisted = await asOutsider('select=id,title,short_id,audio_path&visibility=eq.unlisted');
+  expect(unlisted.ok()).toBeTruthy();
+  expect(await unlisted.json()).toEqual([]);
+
+  const everything = await asOutsider('select=title,visibility');
+  const rows = (await everything.json()) as { title: string; visibility: string }[];
+  expect(rows.every((r) => r.visibility === 'public')).toBeTruthy();
+  expect(rows.map((r) => r.title)).not.toContain('Link Only Please');
+
+  // And the link still works, which is the point of the tier.
+  await page.goto(url);
+  await expect(page.getByRole('heading', { name: 'Link Only Please' })).toBeVisible();
 });

@@ -289,6 +289,18 @@ async function handleRest(req, res, url) {
       const keys = Object.keys(body ?? {});
       const values = keys.map((k) => body[k]);
       const args = keys.map((k, i) => `${k} => $${i + 1}`).join(', ');
+      // A set-returning function answers with its rows, the way PostgREST does;
+      // anything else is called for its effect and answers null.
+      const returnsRows = await c.query(
+        `select p.proretset from pg_proc p
+           join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public' and p.proname = $1 limit 1`,
+        [fn]
+      );
+      if (returnsRows.rows[0]?.proretset) {
+        const out = await c.query(`select * from public.${fn}(${args})`, values);
+        return { status: 200, body: out.rows };
+      }
       await c.query(`select public.${fn}(${args})`, values);
       return { status: 200, body: null };
     })

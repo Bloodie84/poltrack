@@ -18,7 +18,9 @@ test('a visitor uploads and publishes without ever registering', async ({ page, 
   await page.getByText('Allow downloads').click();
   await page.getByRole('button', { name: 'Publish track' }).click();
 
-  await expect(page.getByText('Your track is live')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('heading', { name: 'Your track is live' })).toBeVisible({
+    timeout: 30_000,
+  });
   const url = (await page.locator('.share-link span').first().innerText()).trim();
   expect(url).toMatch(/\/track\/guest-take-[0-9a-f]{12}$/);
 
