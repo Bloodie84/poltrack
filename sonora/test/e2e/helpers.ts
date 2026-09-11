@@ -2,6 +2,8 @@ import { expect, type Page } from '@playwright/test';
 import path from 'node:path';
 
 export const FIXTURE = path.resolve('test/e2e/fixtures/tone.wav');
+/** A second take, 11 seconds instead of 6, for replacing a published file. */
+export const FIXTURE_ALT = path.resolve('test/e2e/fixtures/tone-alt.wav');
 
 /** The Data API as an outsider sees it: the anon key ships in every browser. */
 export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321';

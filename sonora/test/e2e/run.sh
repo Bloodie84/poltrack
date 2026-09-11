@@ -40,6 +40,13 @@ cp .env.e2e.local .env.local
 npm run build
 
 echo "→ starting the app on :${PORT}"
+# A run that was interrupted rather than finished leaves its server behind, and
+# the next one would then silently test the old build — or not start at all.
+if curl -sf -o /dev/null "http://127.0.0.1:${PORT}/" 2>/dev/null; then
+  echo "  (a server is already on :${PORT} — stopping it)"
+  for pid in $(ps -eo pid,comm | awk '$2 ~ /^next-server/ {print $1}'); do kill "$pid" 2>/dev/null || true; done
+  sleep 2
+fi
 npx next start -p "$PORT" & APP_PID=$!
 until curl -sf "http://127.0.0.1:${PORT}/" > /dev/null; do sleep 0.5; done
 

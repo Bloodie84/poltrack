@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { slugify } from '@/lib/slug';
+import { trackFileColumns, type FileMetaInput } from '@/lib/track-file';
 import { cleanMultiline, cleanText, fail, isVisibility, json } from '@/lib/validation';
 import { trackHref } from '@/lib/types';
 
@@ -17,21 +18,7 @@ interface Payload {
   audioPath?: unknown;
   coverPath?: unknown;
   duration?: unknown;
-  file?: {
-    originalFilename?: unknown;
-    mimeType?: unknown;
-    format?: unknown;
-    byteSize?: unknown;
-    bitrate?: unknown;
-    sampleRate?: unknown;
-    channels?: unknown;
-    waveform?: unknown;
-  };
-}
-
-function toInt(v: unknown): number | null {
-  const n = Number(v);
-  return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+  file?: FileMetaInput;
 }
 
 /** Publishes a track once its audio is already in storage. */
@@ -96,27 +83,9 @@ export async function POST(request: NextRequest) {
 
   if (error || !track) return fail(error?.message ?? 'Could not publish the track.', 500);
 
-  const f = body.file ?? {};
-  const waveform = Array.isArray(f.waveform)
-    ? (f.waveform as unknown[])
-        .map((n) => Number(n))
-        .filter((n) => Number.isFinite(n))
-        .map((n) => Math.min(1, Math.max(0, Number(n.toFixed(3)))))
-        .slice(0, 2000)
-    : null;
-
   const { error: fileError } = await supabase.from('track_files').insert({
     track_id: track.id,
-    storage_path: audioPath,
-    original_filename: (cleanText(f.originalFilename, 200) ?? name).slice(0, 200),
-    mime_type: cleanText(f.mimeType, 100) ?? 'application/octet-stream',
-    format: cleanText(f.format, 12),
-    byte_size: Math.max(0, Number(f.byteSize) || 0),
-    duration,
-    bitrate: toInt(f.bitrate),
-    sample_rate: toInt(f.sampleRate),
-    channels: toInt(f.channels),
-    waveform: waveform && waveform.length ? waveform : null,
+    ...trackFileColumns(body.file ?? {}, audioPath, duration),
   });
 
   if (fileError) {

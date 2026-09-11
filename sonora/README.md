@@ -26,6 +26,9 @@ account needed to upload or to listen.
 - **Share** with a copy-link button, WhatsApp, Messenger, X, Facebook, e-mail,
   and the phone's own share sheet where the browser exposes it.
 - **Download** the original file, but only when the owner allows it.
+- **Replace the file without changing the link.** A new mix keeps the same URL,
+  the same page and the same play count, so every message already sent still
+  works — it just plays the new take.
 - **Manage** everything from *My tracks*: play, share, copy link, statistics,
   edit, delete, and flip downloads on or off without republishing.
 

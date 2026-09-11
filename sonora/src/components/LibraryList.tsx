@@ -239,6 +239,15 @@ export default function LibraryList({
               list.map((x) => (x.id === editing.id ? { ...x, ...patch } as LibraryTrack : x))
             )
           }
+          onAudioReplaced={(audio) =>
+            setTracks((list) =>
+              list.map((x) =>
+                x.id === editing.id
+                  ? { ...x, duration: audio.duration, waveform: audio.waveform }
+                  : x
+              )
+            )
+          }
         />
       )}
 

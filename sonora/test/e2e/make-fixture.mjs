@@ -1,40 +1,48 @@
-/** Writes a short, real WAV file used as the upload fixture. */
+/** Writes the short, real WAV files used as upload fixtures. */
 import fs from 'node:fs';
 
 const sampleRate = 44100;
-const seconds = 6;
 const channels = 1;
-const frames = sampleRate * seconds;
-const dataBytes = frames * channels * 2;
 
-const buffer = Buffer.alloc(44 + dataBytes);
-buffer.write('RIFF', 0);
-buffer.writeUInt32LE(36 + dataBytes, 4);
-buffer.write('WAVE', 8);
-buffer.write('fmt ', 12);
-buffer.writeUInt32LE(16, 16);
-buffer.writeUInt16LE(1, 20);
-buffer.writeUInt16LE(channels, 22);
-buffer.writeUInt32LE(sampleRate, 24);
-buffer.writeUInt32LE(sampleRate * channels * 2, 28);
-buffer.writeUInt16LE(channels * 2, 32);
-buffer.writeUInt16LE(16, 34);
-buffer.write('data', 36);
-buffer.writeUInt32LE(dataBytes, 40);
+function wav(seconds) {
+  const frames = sampleRate * seconds;
+  const dataBytes = frames * channels * 2;
 
-for (let i = 0; i < frames; i += 1) {
-  const t = i / sampleRate;
-  // A swelling chord so the waveform has a visible shape.
-  const envelope = 0.25 + 0.7 * Math.abs(Math.sin((Math.PI * t) / seconds));
-  const sample =
-    envelope * (Math.sin(2 * Math.PI * 220 * t) * 0.5 + Math.sin(2 * Math.PI * 330 * t) * 0.3);
-  buffer.writeInt16LE(Math.max(-1, Math.min(1, sample)) * 32000, 44 + i * 2);
+  const buffer = Buffer.alloc(44 + dataBytes);
+  buffer.write('RIFF', 0);
+  buffer.writeUInt32LE(36 + dataBytes, 4);
+  buffer.write('WAVE', 8);
+  buffer.write('fmt ', 12);
+  buffer.writeUInt32LE(16, 16);
+  buffer.writeUInt16LE(1, 20);
+  buffer.writeUInt16LE(channels, 22);
+  buffer.writeUInt32LE(sampleRate, 24);
+  buffer.writeUInt32LE(sampleRate * channels * 2, 28);
+  buffer.writeUInt16LE(channels * 2, 32);
+  buffer.writeUInt16LE(16, 34);
+  buffer.write('data', 36);
+  buffer.writeUInt32LE(dataBytes, 40);
+
+  for (let i = 0; i < frames; i += 1) {
+    const t = i / sampleRate;
+    // A swelling chord so the waveform has a visible shape.
+    const envelope = 0.25 + 0.7 * Math.abs(Math.sin((Math.PI * t) / seconds));
+    const sample =
+      envelope * (Math.sin(2 * Math.PI * 220 * t) * 0.5 + Math.sin(2 * Math.PI * 330 * t) * 0.3);
+    buffer.writeInt16LE(Math.max(-1, Math.min(1, sample)) * 32000, 44 + i * 2);
+  }
+  return buffer;
 }
 
 const out = process.argv[2] ?? 'test/e2e/fixtures/tone.wav';
 fs.mkdirSync(out.slice(0, out.lastIndexOf('/')), { recursive: true });
-fs.writeFileSync(out, buffer);
-console.log(`wrote ${out} (${buffer.length} bytes)`);
+fs.writeFileSync(out, wav(6));
+console.log(`wrote ${out} (6s)`);
+
+// A second take, a different length, so replacing one with the other is visible
+// in the duration rather than only in bytes nobody can see.
+fs.writeFileSync('test/e2e/fixtures/tone-alt.wav', wav(11));
+console.log('wrote test/e2e/fixtures/tone-alt.wav (11s)');
 
 /* A small, real PNG used as the cover fixture. */
 import zlib from 'node:zlib';

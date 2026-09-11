@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import CoverArt from './CoverArt';
+import ReplaceAudio, { type ReplacedAudio } from './ReplaceAudio';
 import Switch from './Switch';
 import VisibilityPicker from './VisibilityPicker';
 import { useToast } from './Toast';
@@ -13,6 +14,7 @@ import { AlertIcon, CloseIcon, ImageIcon } from './icons';
 
 export interface EditableTrack {
   id: string;
+  duration: number;
   title: string;
   artist: string;
   description: string | null;
@@ -26,10 +28,12 @@ export default function TrackEditModal({
   track,
   onClose,
   onSaved,
+  onAudioReplaced,
 }: {
   track: EditableTrack;
   onClose: () => void;
   onSaved: (patch: Partial<EditableTrack> & { slug?: string; short_id?: string }) => void;
+  onAudioReplaced: (result: ReplacedAudio) => void;
 }) {
   const toast = useToast();
   const [title, setTitle] = useState(track.title);
@@ -165,6 +169,12 @@ export default function TrackEditModal({
           onChange={setDownloads}
           label="Allow downloads"
           description="Listeners can download the original file."
+        />
+
+        <ReplaceAudio
+          trackId={track.id}
+          currentDuration={track.duration}
+          onReplaced={onAudioReplaced}
         />
 
       <div className="row" style={{ gap: 8 }}>
