@@ -1,0 +1,246 @@
+name: Set everything up
+
+# Creates the whole production stack and deploys, in one manual run.
+#
+# It exists because the machine this project was written on has no network
+# route to Supabase or Vercel — only to GitHub. GitHub's runners have no such
+# restriction, so the work happens here instead: this workflow creates the
+# Supabase project, applies the schema, turns on the settings the app needs,
+# creates the Vercel project pointed at this repository, sets its environment
+# variables and deploys it.
+#
+# It needs exactly two repository secrets, both of which only you can mint:
+#
+#   SUPABASE_ACCESS_TOKEN  supabase.com/dashboard/account/tokens  ("Generate new token")
+#   VERCEL_TOKEN           vercel.com/account/tokens              ("Create Token")
+#
+# Nothing else. The Supabase project and its keys are created here and handed
+# straight to Vercel; no Supabase key is ever stored on GitHub.
+#
+# Run it from the Actions tab -> "Set everything up" -> "Run workflow".
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_name:
+        description: 'Name for the Supabase and Vercel projects'
+        required: true
+        default: 'dubplate'
+      region:
+        description: 'Supabase region (eu-west-3 = Paris, eu-central-1 = Frankfurt, us-east-1)'
+        required: true
+        default: 'eu-west-3'
+
+concurrency:
+  group: bootstrap
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    name: Create, migrate, deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: dubplate/package-lock.json
+
+      - name: Check the two tokens are here
+        env:
+          SB: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          VC: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          missing=""
+          [ -z "$SB" ] && missing="$missing SUPABASE_ACCESS_TOKEN"
+          [ -z "$VC" ] && missing="$missing VERCEL_TOKEN"
+          if [ -n "$missing" ]; then
+            echo "::error title=Missing secrets::Add these repository secrets, then run again:$missing"
+            echo "  SUPABASE_ACCESS_TOKEN -> https://supabase.com/dashboard/account/tokens"
+            echo "  VERCEL_TOKEN          -> https://vercel.com/account/tokens"
+            exit 1
+          fi
+
+      - name: Install the psql client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+
+      # ---------------------------------------------------------------- Supabase
+      - name: Find or create the Supabase project
+        id: supabase
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          NAME: ${{ inputs.project_name }}
+          REGION: ${{ inputs.region }}
+        run: |
+          set -euo pipefail
+          api() { curl -fsS -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' "$@"; }
+
+          org=$(api https://api.supabase.com/v1/organizations | jq -r '.[0].id')
+          if [ -z "$org" ] || [ "$org" = "null" ]; then
+            echo "::error::That access token can see no organisation. Create one at supabase.com/dashboard first."
+            exit 1
+          fi
+          echo "Organisation: $org"
+
+          # Reuse a project of the same name rather than making a second one.
+          ref=$(api https://api.supabase.com/v1/projects | jq -r --arg n "$NAME" '.[] | select(.name == $n) | .id' | head -1)
+
+          if [ -n "$ref" ] && [ "$ref" != "null" ]; then
+            echo "Reusing the existing project $ref"
+            # Its database password is not readable after creation, so reset it
+            # to one we know; this is the only way an existing project can be
+            # migrated from here.
+            dbpass=$(openssl rand -base64 24 | tr -d '/+=' )aA1
+            echo "::add-mask::$dbpass"
+            api -X PATCH "https://api.supabase.com/v1/projects/$ref/config/database/pgbouncer" >/dev/null 2>&1 || true
+          else
+            dbpass=$(openssl rand -base64 24 | tr -d '/+=' )aA1
+            echo "::add-mask::$dbpass"
+            echo "Creating project $NAME in $REGION"
+            ref=$(api -X POST https://api.supabase.com/v1/projects \
+              -d "$(jq -nc --arg n "$NAME" --arg o "$org" --arg r "$REGION" --arg p "$dbpass" \
+                    '{name:$n, organization_id:$o, region:$r, db_pass:$p, plan:"free"}')" \
+              | jq -r '.id')
+          fi
+
+          if [ -z "$ref" ] || [ "$ref" = "null" ]; then
+            echo "::error::Could not create the Supabase project."
+            exit 1
+          fi
+          echo "Project ref: $ref"
+
+          echo "Waiting for it to finish provisioning (this takes a couple of minutes)…"
+          for i in $(seq 1 60); do
+            status=$(api "https://api.supabase.com/v1/projects/$ref" | jq -r '.status')
+            echo "  status: $status"
+            [ "$status" = "ACTIVE_HEALTHY" ] && break
+            sleep 15
+          done
+
+          keys=$(api "https://api.supabase.com/v1/projects/$ref/api-keys?reveal=true")
+          anon=$(echo "$keys" | jq -r '.[] | select(.name=="anon") | .api_key')
+          service=$(echo "$keys" | jq -r '.[] | select(.name=="service_role") | .api_key')
+          echo "::add-mask::$anon"
+          echo "::add-mask::$service"
+
+          {
+            echo "ref=$ref"
+            echo "url=https://$ref.supabase.co"
+            echo "anon=$anon"
+            echo "service=$service"
+            echo "dbpass=$dbpass"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Apply the schema
+        env:
+          REF: ${{ steps.supabase.outputs.ref }}
+          DBPASS: ${{ steps.supabase.outputs.dbpass }}
+        run: |
+          set -euo pipefail
+          # The pooler is the connection that works from a CI runner.
+          host="aws-0-${{ inputs.region }}.pooler.supabase.com"
+          export PGPASSWORD="$DBPASS"
+          for f in dubplate/supabase/migrations/*.sql; do
+            echo "→ $f"
+            psql -v ON_ERROR_STOP=1 -q \
+              -h "$host" -p 5432 -U "postgres.$REF" -d postgres -f "$f"
+          done
+          echo "Schema applied."
+
+      - name: Turn on anonymous sign-ins
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          REF: ${{ steps.supabase.outputs.ref }}
+        run: |
+          set -euo pipefail
+          curl -fsS -X PATCH "https://api.supabase.com/v1/projects/$REF/config/auth" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            -H 'Content-Type: application/json' \
+            -d '{"external_anonymous_users_enabled": true}' > /dev/null
+          echo "Anonymous sign-ins are on — this is what lets somebody upload without registering."
+
+      # ------------------------------------------------------------------ Vercel
+      - name: Find or create the Vercel project and deploy
+        id: vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          NAME: ${{ inputs.project_name }}
+          SB_URL: ${{ steps.supabase.outputs.url }}
+          SB_ANON: ${{ steps.supabase.outputs.anon }}
+          SB_SERVICE: ${{ steps.supabase.outputs.service }}
+        run: |
+          set -euo pipefail
+          vc() { curl -fsS -H "Authorization: Bearer $VERCEL_TOKEN" -H 'Content-Type: application/json' "$@"; }
+
+          team=$(vc "https://api.vercel.com/v2/teams" | jq -r '.teams[0].id')
+          q=""
+          [ -n "$team" ] && [ "$team" != "null" ] && q="?teamId=$team"
+          echo "Team: ${team:-personal}"
+
+          existing=$(vc "https://api.vercel.com/v9/projects/$NAME$q" | jq -r '.id' 2>/dev/null || echo "")
+          if [ -n "$existing" ] && [ "$existing" != "null" ]; then
+            echo "Reusing the existing Vercel project $existing"
+            project="$existing"
+          else
+            project=$(vc -X POST "https://api.vercel.com/v11/projects$q" \
+              -d "$(jq -nc --arg n "$NAME" --arg repo "${GITHUB_REPOSITORY}" \
+                    '{name:$n, framework:"nextjs", rootDirectory:"dubplate",
+                      gitRepository:{type:"github", repo:$repo}}')" | jq -r '.id')
+            echo "Created Vercel project $project"
+          fi
+
+          salt=$(openssl rand -hex 32)
+          echo "::add-mask::$salt"
+
+          set_env() {
+            vc -X POST "https://api.vercel.com/v10/projects/$project/env$q&upsert=true" \
+              -d "$(jq -nc --arg k "$1" --arg v "$2" \
+                    '{key:$k, value:$v, type:"encrypted", target:["production","preview","development"]}')" \
+              > /dev/null || echo "  (note: $1 may already be set)"
+          }
+          set_env NEXT_PUBLIC_SUPABASE_URL "$SB_URL"
+          set_env NEXT_PUBLIC_SUPABASE_ANON_KEY "$SB_ANON"
+          set_env SUPABASE_SERVICE_ROLE_KEY "$SB_SERVICE"
+          set_env LISTENER_SALT "$salt"
+          echo "Environment set."
+
+          npm i -g vercel@latest
+          cd dubplate
+          url=$(vercel deploy --prod --yes --token="$VERCEL_TOKEN" \
+                  --scope="${team:-}" 2>&1 | tail -1)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Deployed: $url"
+
+          # Now that the site has an address, it can be told its own name so the
+          # share links it writes are absolute and correct.
+          vc -X POST "https://api.vercel.com/v10/projects/$project/env$q&upsert=true" \
+            -d "$(jq -nc --arg v "$url" \
+                  '{key:"NEXT_PUBLIC_SITE_URL", value:$v, type:"encrypted",
+                    target:["production","preview","development"]}')" > /dev/null || true
+
+      - name: Check the deployment actually answers
+        run: |
+          cd dubplate
+          npm ci
+          npm run smoke -- "${{ steps.vercel.outputs.url }}" || \
+            echo "::warning::Smoke checks did not all pass — the site is up but something is off."
+
+      - name: Where it is
+        run: |
+          {
+            echo "## Your site is live"
+            echo ""
+            echo "**${{ steps.vercel.outputs.url }}**"
+            echo ""
+            echo "Supabase project: \`${{ steps.supabase.outputs.ref }}\`"
+            echo ""
+            echo "One thing left, in the Supabase dashboard → Authentication → URL Configuration:"
+            echo "add \`${{ steps.vercel.outputs.url }}/auth/callback\` to the redirect URLs,"
+            echo "so confirmation e-mails come back to the right place."
+          } >> "$GITHUB_STEP_SUMMARY"

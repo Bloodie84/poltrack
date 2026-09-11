@@ -1,6 +1,11 @@
 name: Deploy
 
-# Deploys sonora/ to Vercel. It does nothing until three repository secrets
+# A second, optional path to production, kept for anyone who would rather deploy
+# from CI than let Vercel watch the repository. If you ran "Set everything up",
+# the Vercel project is already linked to this repository and redeploys on every
+# push on its own — you do not need this workflow at all.
+#
+# Deploys dubplate/ to Vercel. It does nothing until three repository secrets
 # exist — VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID — and says so plainly
 # rather than failing red, so the workflow can sit here waiting to be armed.
 #
@@ -11,12 +16,12 @@ name: Deploy
 on:
   push:
     branches: [claude/audio-sharing-platform-pa536y]
-    paths: ['sonora/**', '.github/workflows/deploy.yml']
+    paths: ['dubplate/**', '.github/workflows/deploy.yml']
   workflow_dispatch:
 
 defaults:
   run:
-    working-directory: sonora
+    working-directory: dubplate
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -35,7 +40,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: sonora/package-lock.json
+          cache-dependency-path: dubplate/package-lock.json
 
       - name: Is this repository armed for deployment?
         id: armed
@@ -58,7 +63,7 @@ jobs:
       - name: Nothing to do yet
         if: steps.armed.outputs.ready == 'false'
         run: |
-          echo "::notice title=Deployment not armed::Add these repository secrets to deploy:${{ steps.armed.outputs.missing }} — see sonora/DEPLOY.md"
+          echo "::notice title=Deployment not armed::Add these repository secrets to deploy:${{ steps.armed.outputs.missing }} — see dubplate/DEPLOY.md"
           echo "Skipping. This is not a failure."
 
       - name: Deploy to Vercel
