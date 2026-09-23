@@ -2,9 +2,11 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { display, mono, sans } from './fonts';
 import Header from '@/components/Header';
+import NotConfigured from '@/components/NotConfigured';
 import MiniPlayer from '@/components/MiniPlayer';
 import { PlayerProvider } from '@/components/PlayerProvider';
 import { ToastProvider } from '@/components/Toast';
+import { missingEnv } from '@/lib/env';
 import { SITE_NAME, SITE_TAGLINE, getOrigin } from '@/lib/site';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -34,6 +36,11 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Checked here rather than per page: every route needs the database, so an
+  // instance without one should say so once, in the same voice as the rest of
+  // the app, instead of failing differently on each page.
+  const missing = missingEnv();
+
   return (
     <html lang="en" className={`${sans.variable} ${display.variable} ${mono.variable}`}>
       <body>
@@ -41,7 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <PlayerProvider>
             <div className="shell">
               <Header />
-              <main className="main">{children}</main>
+              <main className="main">{missing.length > 0 ? <NotConfigured missing={missing} /> : children}</main>
             </div>
             <MiniPlayer />
           </PlayerProvider>
