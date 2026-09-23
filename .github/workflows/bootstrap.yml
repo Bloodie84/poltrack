@@ -30,6 +30,10 @@ on:
         description: 'Supabase region (eu-west-3 = Paris, eu-central-1 = Frankfurt, us-east-1)'
         required: true
         default: 'eu-west-3'
+      ref:
+        description: 'Branch holding the application'
+        required: true
+        default: 'claude/audio-sharing-platform-pa536y'
 
 concurrency:
   group: bootstrap
@@ -42,7 +46,12 @@ jobs:
     timeout-minutes: 30
 
     steps:
+      # This file is on the default branch — that is the only place GitHub reads
+      # workflow_dispatch from — but the application is not. Check out the
+      # branch that actually holds it.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
 
       - uses: actions/setup-node@v4
         with:
@@ -188,10 +197,12 @@ jobs:
             echo "Reusing the existing Vercel project $existing"
             project="$existing"
           else
+            # Deliberately not linked to the repository: Vercel would then
+            # deploy the default branch on every push, and the application is
+            # not on it. This workflow deploys what it checked out instead.
             project=$(vc -X POST "https://api.vercel.com/v11/projects$q" \
-              -d "$(jq -nc --arg n "$NAME" --arg repo "${GITHUB_REPOSITORY}" \
-                    '{name:$n, framework:"nextjs", rootDirectory:"dubplate",
-                      gitRepository:{type:"github", repo:$repo}}')" | jq -r '.id')
+              -d "$(jq -nc --arg n "$NAME" \
+                    '{name:$n, framework:"nextjs", rootDirectory:"dubplate"}')" | jq -r '.id')
             echo "Created Vercel project $project"
           fi
 
@@ -240,7 +251,12 @@ jobs:
             echo ""
             echo "Supabase project: \`${{ steps.supabase.outputs.ref }}\`"
             echo ""
-            echo "One thing left, in the Supabase dashboard → Authentication → URL Configuration:"
-            echo "add \`${{ steps.vercel.outputs.url }}/auth/callback\` to the redirect URLs,"
-            echo "so confirmation e-mails come back to the right place."
+            echo "Two things left:"
+            echo ""
+            echo "1. Supabase dashboard → Authentication → URL Configuration: add"
+            echo "   \`${{ steps.vercel.outputs.url }}/auth/callback\` to the redirect URLs,"
+            echo "   so confirmation e-mails come back to the right place."
+            echo "2. To get push-to-deploy, connect this repository in the Vercel project"
+            echo "   and set its production branch to \`${{ inputs.ref }}\`. Until then,"
+            echo "   re-run this workflow to ship a change."
           } >> "$GITHUB_STEP_SUMMARY"

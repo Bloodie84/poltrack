@@ -26,7 +26,11 @@ manual run. It needs two tokens, and nothing else.
    ```
 
 4. **Actions** tab → **Set everything up** → *Run workflow*. Pick a region
-   (`eu-west-3` is Paris) and go.
+   (`eu-west-3` is Paris), leave the branch as it is, and go.
+
+   The workflow file lives on the default branch because that is the only place
+   GitHub reads *Run workflow* from; the application does not, which is why the
+   run takes the branch as an input and checks that out.
 
 It takes five to ten minutes, most of which is Supabase provisioning the
 database. The run summary ends with the URL.
@@ -41,8 +45,10 @@ confirmation e-mails come back to the right place.
 > The run log says exactly where, and fixing it is a small edit — it is not a
 > reason to fall back to the manual route straight away.
 
-Afterwards the Vercel project is linked to this repository, so every push
-redeploys on its own. `deploy.yml` becomes redundant.
+The Vercel project is deliberately **not** linked to the repository: Vercel
+would then build the default branch on every push, and the application is not on
+it. Re-run this workflow to ship a change, or connect the repository in the
+Vercel project and set its production branch to the one holding the app.
 
 ---
 
