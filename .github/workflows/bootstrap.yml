@@ -6,8 +6,8 @@ name: Set everything up
 # route to Supabase or Vercel — only to GitHub. GitHub's runners have no such
 # restriction, so the work happens here instead: this workflow creates the
 # Supabase project, applies the schema, turns on the settings the app needs,
-# creates the Vercel project pointed at this repository, sets its environment
-# variables and deploys it.
+# creates the Vercel project, sets its environment variables and deploys what it
+# checked out.
 #
 # It needs exactly two repository secrets, both of which only you can mint:
 #
