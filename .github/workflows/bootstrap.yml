@@ -86,6 +86,7 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           NAME: ${{ inputs.project_name }}
           REGION: ${{ inputs.region }}
+          EXISTING_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
           api() { curl -fsS -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' "$@"; }
@@ -102,12 +103,16 @@ jobs:
 
           if [ -n "$ref" ] && [ "$ref" != "null" ]; then
             echo "Reusing the existing project $ref"
-            # Its database password is not readable after creation, so reset it
-            # to one we know; this is the only way an existing project can be
-            # migrated from here.
-            dbpass=$(openssl rand -base64 24 | tr -d '/+=' )aA1
+            # A project's database password cannot be read back after creation.
+            # Re-running against one therefore needs it supplied, and saying so
+            # here beats failing later with an authentication error nobody can
+            # act on.
+            if [ -z "${EXISTING_DB_PASSWORD:-}" ]; then
+              echo "::error title=Database password needed::A project named '$NAME' already exists, and its database password cannot be read back. Add it as the repository secret SUPABASE_DB_PASSWORD (Supabase dashboard -> Project Settings -> Database -> Reset database password), or run this again with a different project name."
+              exit 1
+            fi
+            dbpass="$EXISTING_DB_PASSWORD"
             echo "::add-mask::$dbpass"
-            api -X PATCH "https://api.supabase.com/v1/projects/$ref/config/database/pgbouncer" >/dev/null 2>&1 || true
           else
             dbpass=$(openssl rand -base64 24 | tr -d '/+=' )aA1
             echo "::add-mask::$dbpass"
@@ -132,9 +137,19 @@ jobs:
             sleep 15
           done
 
-          keys=$(api "https://api.supabase.com/v1/projects/$ref/api-keys?reveal=true")
+          keys=$(api "https://api.supabase.com/v1/projects/$ref/api-keys?reveal=true" \
+                 || api "https://api.supabase.com/v1/projects/$ref/api-keys")
           anon=$(echo "$keys" | jq -r '.[] | select(.name=="anon") | .api_key')
           service=$(echo "$keys" | jq -r '.[] | select(.name=="service_role") | .api_key')
+
+          # A masked or absent key would be deployed as a working one and fail
+          # only when somebody opened the site.
+          case "$anon" in ''|null|*'...'*)
+            echo "::error::The anon key came back unusable. The project may still be provisioning, or this token cannot reveal keys."; exit 1;;
+          esac
+          case "$service" in ''|null|*'...'*)
+            echo "::error::The service_role key came back unusable."; exit 1;;
+          esac
           echo "::add-mask::$anon"
           echo "::add-mask::$service"
 
@@ -152,13 +167,29 @@ jobs:
           DBPASS: ${{ steps.supabase.outputs.dbpass }}
         run: |
           set -euo pipefail
-          # The pooler is the connection that works from a CI runner.
-          host="aws-0-${{ inputs.region }}.pooler.supabase.com"
           export PGPASSWORD="$DBPASS"
+
+          # Two ways in, because which one a project answers on depends on when
+          # and where it was created: the pooler (a shared host, user
+          # postgres.<ref>) and the project's own host. Pick whichever replies
+          # before applying anything, so a wrong guess is not discovered halfway
+          # through the schema.
+          pooler_host="aws-0-${{ inputs.region }}.pooler.supabase.com"
+          direct_host="db.$REF.supabase.co"
+
+          if psql -q -h "$pooler_host" -p 5432 -U "postgres.$REF" -d postgres -c 'select 1' >/dev/null 2>&1; then
+            host="$pooler_host"; user="postgres.$REF"
+          elif psql -q -h "$direct_host" -p 5432 -U postgres -d postgres -c 'select 1' >/dev/null 2>&1; then
+            host="$direct_host"; user="postgres"
+          else
+            echo "::error title=Cannot reach the database::Tried $pooler_host (as postgres.$REF) and $direct_host (as postgres). If the project was only just created it may still be starting; re-run in a minute."
+            exit 1
+          fi
+          echo "Connected on $host"
+
           for f in dubplate/supabase/migrations/*.sql; do
             echo "→ $f"
-            psql -v ON_ERROR_STOP=1 -q \
-              -h "$host" -p 5432 -U "postgres.$REF" -d postgres -f "$f"
+            psql -v ON_ERROR_STOP=1 -q -h "$host" -p 5432 -U "$user" -d postgres -f "$f"
           done
           echo "Schema applied."
 
@@ -187,12 +218,21 @@ jobs:
           set -euo pipefail
           vc() { curl -fsS -H "Authorization: Bearer $VERCEL_TOKEN" -H 'Content-Type: application/json' "$@"; }
 
-          team=$(vc "https://api.vercel.com/v2/teams" | jq -r '.teams[0].id')
-          q=""
-          [ -n "$team" ] && [ "$team" != "null" ] && q="?teamId=$team"
+          team=$(vc "https://api.vercel.com/v2/teams" | jq -r '.teams[0].id // empty')
+          # Built as a list of parameters rather than a string glued on the end:
+          # with no team the old form produced ".../env&upsert=true", a URL with
+          # no question mark in it.
+          scope=""
+          [ -n "$team" ] && scope="teamId=$team"
+          url() {  # url <path> [extra query]
+            local u="https://api.vercel.com$1" sep="?"
+            [ -n "$scope" ] && { u="$u$sep$scope"; sep="&"; }
+            [ -n "${2:-}" ] && u="$u$sep$2"
+            printf '%s' "$u"
+          }
           echo "Team: ${team:-personal}"
 
-          existing=$(vc "https://api.vercel.com/v9/projects/$NAME$q" | jq -r '.id' 2>/dev/null || echo "")
+          existing=$(vc "$(url "/v9/projects/$NAME")" | jq -r '.id' 2>/dev/null || echo "")
           if [ -n "$existing" ] && [ "$existing" != "null" ]; then
             echo "Reusing the existing Vercel project $existing"
             project="$existing"
@@ -200,7 +240,7 @@ jobs:
             # Deliberately not linked to the repository: Vercel would then
             # deploy the default branch on every push, and the application is
             # not on it. This workflow deploys what it checked out instead.
-            project=$(vc -X POST "https://api.vercel.com/v11/projects$q" \
+            project=$(vc -X POST "$(url /v11/projects)" \
               -d "$(jq -nc --arg n "$NAME" \
                     '{name:$n, framework:"nextjs", rootDirectory:"dubplate"}')" | jq -r '.id')
             echo "Created Vercel project $project"
@@ -210,10 +250,10 @@ jobs:
           echo "::add-mask::$salt"
 
           set_env() {
-            vc -X POST "https://api.vercel.com/v10/projects/$project/env$q&upsert=true" \
+            vc -X POST "$(url "/v10/projects/$project/env" "upsert=true")" \
               -d "$(jq -nc --arg k "$1" --arg v "$2" \
                     '{key:$k, value:$v, type:"encrypted", target:["production","preview","development"]}')" \
-              > /dev/null || echo "  (note: $1 may already be set)"
+              > /dev/null || { echo "::error::Could not set $1 on the Vercel project."; exit 1; }
           }
           set_env NEXT_PUBLIC_SUPABASE_URL "$SB_URL"
           set_env NEXT_PUBLIC_SUPABASE_ANON_KEY "$SB_ANON"
@@ -223,17 +263,24 @@ jobs:
 
           npm i -g vercel@latest
           cd dubplate
-          url=$(vercel deploy --prod --yes --token="$VERCEL_TOKEN" \
-                  --scope="${team:-}" 2>&1 | tail -1)
-          echo "url=$url" >> "$GITHUB_OUTPUT"
-          echo "Deployed: $url"
+          # --scope with an empty value is not a valid argument, so it is only
+          # passed when there is a team to pass.
+          scope_args=()
+          [ -n "$team" ] && scope_args=(--scope "$team")
+          deploy_log=$(mktemp)
+          vercel deploy --prod --yes --token="$VERCEL_TOKEN" "${scope_args[@]}" 2>&1 | tee "$deploy_log"
+          # The last line is not reliably the URL — warnings land there too.
+          site=$(grep -oE 'https://[a-zA-Z0-9.-]+\.vercel\.app' "$deploy_log" | tail -1)
+          if [ -z "$site" ]; then
+            echo "::error::The deployment produced no URL. The log above says why."
+            exit 1
+          fi
+          echo "url=$site" >> "$GITHUB_OUTPUT"
+          echo "Deployed: $site"
 
           # Now that the site has an address, it can be told its own name so the
           # share links it writes are absolute and correct.
-          vc -X POST "https://api.vercel.com/v10/projects/$project/env$q&upsert=true" \
-            -d "$(jq -nc --arg v "$url" \
-                  '{key:"NEXT_PUBLIC_SITE_URL", value:$v, type:"encrypted",
-                    target:["production","preview","development"]}')" > /dev/null || true
+          set_env NEXT_PUBLIC_SITE_URL "$site"
 
       - name: Check the deployment actually answers
         run: |
