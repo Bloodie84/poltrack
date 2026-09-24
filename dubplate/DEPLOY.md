@@ -25,6 +25,12 @@ manual run. It needs two tokens, and nothing else.
    VERCEL_TOKEN
    ```
 
+   A third, `SUPABASE_DB_PASSWORD`, is needed **only** when re-running against a
+   Supabase project that already exists: a project's database password cannot be
+   read back after it is created, so a second run has no way to reach the
+   database without being told it. The run stops and says so rather than failing
+   later on an authentication error.
+
 4. **Actions** tab → **Set everything up** → *Run workflow*. Pick a region
    (`eu-west-3` is Paris), leave the branch as it is, and go.
 
@@ -41,9 +47,12 @@ confirmation e-mails come back to the right place.
 
 > Honest caveat: this workflow talks to the Supabase and Vercel REST APIs, and
 > it was written in an environment with no network route to either, so it has
-> never been run against them. The first run may well trip over an API detail.
-> The run log says exactly where, and fixing it is a small edit — it is not a
-> reason to fall back to the manual route straight away.
+> never been run against them. It has been read as carefully as it can be
+> without running — shell-linted, its URL building tested both with and without
+> a team, and the places where an API's answer might not be what was assumed
+> now stop the run with a message rather than carrying on — but the first run
+> may still trip over a detail. The log says where, and fixing it is a small
+> edit rather than a reason to fall back to the manual route.
 
 The Vercel project is deliberately **not** linked to the repository: Vercel
 would then build the default branch on every push, and the application is not on
